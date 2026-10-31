@@ -9,7 +9,7 @@ to statutory governance and patronage dividends.
 ## Deployment tiers
 | Tier | Target | Status |
 |---|---|---|
-| **v1 — Static demo** | GitHub Pages (free) | ✅ This build. `domain.js` implements the full domain logic; `localStorage` (namespaced per tenant) acts as the database; `qrcode` vendored for offline QR. |
+| **v1 — Static demo** | GitHub Pages (free) | ✅ This build. `domain.js` implements the full domain logic; `localStorage` (namespaced per tenant) acts as the database; `qrcode` vendored for offline QR. **Onboarding is moderated**: cooperatives submit an access request (form → WhatsApp to the platform owner with their details); the owner approves from the platform console, which provisions the isolated tenant. No self-service tenant creation → the tenant base stays clean of fake cooperatives. |
 | **v2 — SaaS backend** | API + Postgres (RLS on `tenant_id`) + object storage | Spec in `API-SPEC.md`. Domain functions map 1:1 to endpoints. |
 | **v3 — Mobile offline** | Capacitor/Capacitive wrapper or PWA with background sync | POS already designed offline-first (idempotency keys + `synced` flag). |
 

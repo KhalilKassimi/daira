@@ -90,6 +90,27 @@ document.addEventListener('click', e => {
 function setNet() { $('#netDot').classList.toggle('off', !navigator.onLine); }
 window.addEventListener('online', setNet); window.addEventListener('offline', setNet);
 
+/* ---------------- pending access requests (platform scope) ------------
+   Moderated onboarding: a cooperative submits a request instead of
+   getting instant access. The request is sent to the platform owner
+   via WhatsApp; the owner approves from the platform console, which
+   provisions the isolated tenant. Keeps the tenant base clean.      */
+const REQ_KEY = 'daira_requests_v1';
+const WA_NUMBER = '212696672715';
+function getRequests() { try { return JSON.parse(localStorage.getItem(REQ_KEY)) || []; } catch (e) { return []; } }
+function saveRequest(r) { const a = getRequests(); a.unshift(r); try { localStorage.setItem(REQ_KEY, JSON.stringify(a)); } catch (e) {} }
+function updateRequest(id, patch) { const a = getRequests().map(r => r.id === id ? Object.assign({}, r, patch) : r); try { localStorage.setItem(REQ_KEY, JSON.stringify(a)); } catch (e) {} }
+function waRequestLink(r) {
+  const lines = ['🌿 Daira — Demande d\u2019accès / طلب ولوج',
+    '🏢 ' + (r.name || '') + (r.name_ar ? ' — ' + r.name_ar : ''),
+    '📍 ' + (r.region || '') + ' · ' + (r.sector || ''),
+    '📞 ' + (r.phone || ''),
+    '👤 ' + (r.adminName || '') + (r.adminPhone ? ' (' + r.adminPhone + ')' : ''),
+    '',
+    'المرجو منحي حق الوصول إلى فضائي — Merci de m\u2019ouvrir mon espace.'];
+  return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(lines.join('\n'));
+}
+
 /* ---------------- router ---------------- */
 function route() { return (location.hash || '#/').slice(2).split('/').filter(Boolean); }
 
@@ -208,10 +229,15 @@ function vOnboard(V, step) {
     <label class="f">${esc(t('ob_color'))}<div class="swatches">${OB_COLORS.map(c=>`<span class="swatch ${d.primaryColor===c?'on':''}" data-c="${c}" style="background:${c}"></span>`).join('')}</div></label>
     <label class="f">${esc(t('ob_emoji'))}<div class="swatches">${OB_EMOJIS.map(e=>`<span class="swatch ${d.logoEmoji===e?'on':''}" data-e="${e}" style="font-size:1.5rem;display:flex;align-items:center;justify-content:center;background:#f0f4f1">${e}</span>`).join('')}</div></label>
     <label class="f">${esc(t('set_lang'))}<select id="o_locale">${LANGS.map(l=>`<option value="${l.code}" ${d.locale===l.code?'selected':''}>${l.label}</option>`).join('')}</select></label>`;
-  if (OB.step === 4) body = `
-    <div style="text-align:center;padding:1rem"><div style="font-size:3rem">${d.logoEmoji}</div>
-    <h2>${esc(t('ob_done_t'))}</h2><p class="muted">${esc(t('ob_done_d'))}</p>
-    <div class="card" style="text-align:start"><b>${esc(d.name||'')}</b><br><span class="muted">${esc(d.region||'')} · ${esc(d.sector||'')}</span></div></div>`;
+  if (OB.step === 4) {
+    const r = OB.lastReq || {};
+    body = `<div style="text-align:center;padding:1rem"><div style="font-size:3rem">📩</div>
+    <h2>${esc(t('ob_req_t'))}</h2><p class="muted">${esc(t('ob_req_d'))}</p>
+    <div class="card" style="text-align:start"><b>${esc(r.logoEmoji || '🏢')} ${esc(r.name || '')}</b><br>
+    <span class="muted">${esc(r.region || '')} · ${esc(r.sector || '')} · ${esc(r.phone || '')}</span></div>
+    <a class="btn" style="text-decoration:none;background:#25D366" target="_blank" rel="noopener" href="${waRequestLink(r)}">💬 ${esc(t('ob_wa_btn'))}</a>
+    <p class="muted" style="margin-top:.8rem"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
+  }
 
   V.innerHTML = `<div class="card" style="max-width:520px;margin:1.5rem auto">
     <h1>${esc(t('ob_t'))}</h1><div class="wizard-dots">${dots}</div>
@@ -219,8 +245,7 @@ function vOnboard(V, step) {
     <div class="row" style="margin-top:1rem">
       ${OB.step>1&&OB.step<4?`<button class="btn ghost" id="o_back" style="flex:1">${esc(t('ob_back'))}</button>`:''}
       ${OB.step<3?`<button class="btn" id="o_next" style="flex:2">${esc(t('ob_next'))}</button>`:''}
-      ${OB.step===3?`<button class="btn" id="o_finish" style="flex:2">${esc(t('ob_finish'))}</button>`:''}
-      ${OB.step===4?`<button class="btn" id="o_go" style="flex:2">${esc(t('ob_go'))}</button>`:''}
+      ${OB.step===3?`<button class="btn" id="o_finish" style="flex:2">📩 ${esc(t('ob_finish'))}</button>`:''}
     </div></div>`;
 
   const grab = () => {
@@ -237,28 +262,52 @@ function vOnboard(V, step) {
   if (fn) fn.onclick = () => {
     grab();
     if (!d.name || !d.adminName) { toast(t('err') + ' — ' + t('ob_name') + ' / ' + t('ob_admin'), true); return; }
-    try {
-      const { tenant, adminUserId } = Daira.provisionTenant(d);
-      setLang(d.locale || 'fr');
-      Daira.setSession(tenant.id, adminUserId);
-      OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG };
-      vOnboard(V, 4);
-    } catch (e) { toast(t('err') + ': ' + e.message, true); }
+    // moderated onboarding: save an access REQUEST, do NOT provision yet
+    const req = { id: 'req_' + Date.now().toString(36), created_at: new Date().toISOString(), status: 'pending',
+      name: d.name, name_ar: d.name_ar, region: d.region, sector: d.sector, phone: d.phone,
+      adminName: d.adminName, adminPhone: d.adminPhone,
+      primaryColor: d.primaryColor, logoEmoji: d.logoEmoji, locale: d.locale };
+    saveRequest(req);
+    OB.lastReq = req;
+    setLang(d.locale || 'fr');
+    OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG };
+    vOnboard(V, 4);
   };
-  const go = $('#o_go'); if (go) go.onclick = () => { location.hash = '#/dash'; };
 }
 
 /* ---------------- platform console (super_admin) ---------------- */
 function vPlatform(V) {
   if (!Daira.can('tenant.provision')) { toast(t('no_perm'), true); location.hash = '#/'; return; }
   const tenants = Daira.listTenants();
+  const reqs = getRequests().filter(r => r.status === 'pending');
   V.innerHTML = `<div class="row between"><h1>🖥️ ${esc(t('plat_t'))}</h1>
     <a class="btn sm" href="#/onboard" style="text-decoration:none">${esc(t('plat_new'))}</a></div>
     <p class="muted">${esc(t('plat_sub'))}</p>
+    <h2>📩 ${esc(t('plat_req'))} (${reqs.length})</h2>
+    ${reqs.map(r => `<div class="card" style="border-inline-start:4px solid var(--amber)">
+      <div><b>${esc(r.logoEmoji || '🏢')} ${esc(r.name)}</b><br>
+      <span class="muted">${esc(r.name_ar || '')} · ${esc(r.region)} · ${esc(r.sector)}<br>
+      📞 ${esc(r.phone)} · 👤 ${esc(r.adminName)} (${esc(r.adminPhone)})<br>🕐 ${fmtD(r.created_at)}</span></div>
+      <div class="row" style="margin-top:.6rem">
+        <button class="btn sm" data-approve="${r.id}" style="flex:1">✅ ${esc(t('plat_approve'))}</button>
+        <button class="btn sm danger" data-reject="${r.id}">✖️ ${esc(t('plat_reject'))}</button>
+      </div></div>`).join('') || `<p class="muted">—</p>`}
+    <h2>🏢 ${esc(t('plat_sub'))}</h2>
     ${tenants.map(x => { const n = Object.values(Daira.DB().members).filter(m=>m.tenant_id===x.id).length;
       return `<div class="card"><div class="row between"><div><b>${x.branding.logo_emoji} ${esc(x.name)}</b><br>
       <span class="muted">${esc(x.region)} · ${esc(x.sector)} · ${x.code} · ${n} ${esc(t('d_members'))}</span></div>
       <span class="badge ok">${esc(x.status)}</span></div></div>`; }).join('')}`;
+  V.querySelectorAll('[data-approve]').forEach(b => b.onclick = () => {
+    const r = getRequests().find(x => x.id === b.dataset.approve);
+    if (!r) return;
+    try {
+      const { tenant } = Daira.provisionTenant(r);   // approved → isolated workspace
+      updateRequest(r.id, { status: 'approved', tenant_id: tenant.id, tenant_code: tenant.code });
+      toast('✅ ' + tenant.code + ' — ' + tenant.name);
+      render();
+    } catch (e) { toast(t('err') + ': ' + e.message, true); }
+  });
+  V.querySelectorAll('[data-reject]').forEach(b => b.onclick = () => { updateRequest(b.dataset.reject, { status: 'rejected' }); render(); });
 }
 
 /* ---------------- dashboard ---------------- */
