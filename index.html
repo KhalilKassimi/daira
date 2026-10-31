@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Daira — دائرة | Le cercle de vie des coopératives</title>
+<meta name="description" content="Plateforme PLM multi-tenant pour coopératives marocaines — traçabilité, production, QR, stock, gouvernance.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar" class="hidden">
+    <button id="menuBtn" class="icon-btn" aria-label="menu">☰</button>
+    <div class="brand"><span id="brandEmoji">🌿</span><span id="brandName">Daira</span></div>
+    <div class="top-actions">
+      <span id="netDot" class="net-dot" title="online">●</span>
+      <select id="langSel" class="lang-sel" aria-label="language"></select>
+    </div>
+  </header>
+  <nav id="sidenav" class="hidden"></nav>
+  <div id="scrim" class="hidden"></div>
+  <main id="view"></main>
+  <footer id="foot" class="hidden"></footer>
+</div>
+<div id="toast" class="hidden"></div>
+<script src="qrcode.min.js"></script>
+<script src="domain.js"></script>
+<script src="seed.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
