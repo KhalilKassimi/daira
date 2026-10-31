@@ -183,7 +183,7 @@ function vLogin(V, tab) {
     </div>
     ${tab==='admin'?`<p class="muted" style="text-align:center">🔒 ${esc(t('login_hint_admin'))}</p>`:''}
     <label class="f">${esc(t('login_user'))}<input id="lg_u" autocomplete="username" placeholder="${tab==='admin'?'admin':'T001'}"></label>
-    <label class="f">${esc(t('login_pin'))}<input id="lg_p" type="password" autocomplete="current-password" inputmode="numeric"></label>
+    <label class="f">${esc(t('login_pin'))}<input id="lg_p" type="password" autocomplete="current-password"></label>
     <button class="btn" id="lg_go">🔑 ${esc(t('login_go'))}</button>
     <p style="text-align:center;margin-top:1rem" class="muted">${esc(t('login_noaccess'))} <a href="#/onboard">${esc(t('cta_start'))}</a></p>
     <p style="text-align:center"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
