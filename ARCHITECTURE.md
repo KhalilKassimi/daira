@@ -42,5 +42,8 @@ to statutory governance and patronage dividends.
 - Data lives in the browser (`localStorage`) — per-device, no real multi-user sync.
 - Public QR verification resolves only on a device that holds the tenant data; production needs the
   signed `GET /passport/:lotCode` endpoint.
-- No real authentication (demo role picker); production uses JWT + PIN per the API spec.
+- Auth is demo-grade: per-user PIN hashed with cyrb53 in `localStorage` (no server, no bcrypt).
+  Credentials are issued by the platform owner at approval (username = tenant code, e.g. `T002`).
+  Default admin login: `admin` / `daira2026` — change it in Settings after first login.
+  Production uses bcrypt + JWT per the API spec.
 - File uploads (certificates) store metadata only in v1.

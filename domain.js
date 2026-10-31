@@ -129,6 +129,43 @@ const Daira = (() => {
     if (!can(action)) throw new Error('FORBIDDEN: role "' + (currentUser()||{}).role + '" cannot ' + action);
   }
 
+  /* ---------------- Auth (static tier: demo-grade PIN auth)
+     Users carry username + pin_hash (cyrb53). Production replaces this
+     with bcrypt + JWT server-side; the interface stays the same. */
+  function hashPin(pin) {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    const s = String(pin);
+    for (let i = 0; i < s.length; i++) {
+      const ch = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function setCredentials(userId, username, pin) {
+    const u = DB.users[userId];
+    if (!u) throw new Error('VALIDATION: unknown user');
+    if (username) {
+      const clash = Object.values(DB.users).find(x => x.username === username && x.id !== userId);
+      if (clash) throw new Error('AUTH: username taken');
+      u.username = username;
+    }
+    if (pin) u.pin_hash = hashPin(pin);
+    save();
+    return u;
+  }
+
+  function authenticate(username, pin) {
+    const u = Object.values(DB.users).find(x => x.username === String(username || '').trim());
+    if (!u || !u.pin_hash || u.pin_hash !== hashPin(pin)) throw new Error('AUTH: bad credentials');
+    if (u.tenant_id !== '*' && (!DB.tenants[u.tenant_id] || DB.tenants[u.tenant_id].status !== 'active'))
+      throw new Error('AUTH: tenant disabled');
+    return u;
+  }
+
   /* ---------------- Tenant provisioning ------------------------------
      Onboarding pipeline: register -> provision isolated workspace ->
      seed roles, default settings, sequence counters.                  */
@@ -156,7 +193,10 @@ const Daira = (() => {
     const adminId = uid('usr');
     DB.users[adminId] = {
       id: adminId, tenant_id: tid, name: input.adminName, phone: input.adminPhone || '',
-      role: 'manager', is_owner: true, created_at: new Date().toISOString(),
+      role: 'manager', is_owner: true,
+      username: input.username || tenant.code,           // login = tenant code (e.g. T002)
+      pin_hash: input.pin ? hashPin(input.pin) : null,   // issued at approval
+      created_at: new Date().toISOString(),
     };
     save();
     return { tenant, adminUserId: adminId };
@@ -474,6 +514,7 @@ const Daira = (() => {
     scoped, get, put, nextSeq,
     activeTenantId, currentUser, can, requirePerm, ROLES, PERMISSIONS,
     provisionTenant, listTenants,
+    hashPin, setCredentials, authenticate,
     ingestContribution, GRADE_TABLE,
     runTransformation,
     lotAvailable, createSale, adjustInventory,

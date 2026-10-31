@@ -62,7 +62,8 @@ const NAV = [
 
 function renderShell(route) {
   const s = Daira.DB().session;
-  const logged = !!(s.tenantId && s.userId);
+  const shU = Daira.currentUser();
+  const logged = !!shU && (shU.role === 'super_admin' || !!s.tenantId);
   const isPublic = route[0] === 'p';
   $('#topbar').classList.toggle('hidden', !logged || isPublic);
   $('#sidenav').classList.toggle('hidden', !logged || isPublic);
@@ -129,11 +130,13 @@ function render() {
 
   if (r[0] === 'p' && r[1] && r[2]) return void vPublicPassport(r[1], decodeURIComponent(r[2]));
   if (!r.length || r[0] === '') return void vLanding(V);
-  if (r[0] === 'login') return void vLogin(V);
+  if (r[0] === 'login') return void vLogin(V, r[1]);
   if (r[0] === 'onboard') return void vOnboard(V, 1);
 
-  if (!s.tenantId || !s.userId) { location.hash = '#/login'; return; }
+  if (!s.userId) { location.hash = '#/login'; return; }
   const u = Daira.currentUser();
+  if (!u) { Daira.setSession(null, null); location.hash = '#/login'; return; }
+  if (u.role !== 'super_admin' && !s.tenantId) { location.hash = '#/login'; return; }
   if (u && u.role === 'super_admin' && r[0] !== 'platform' && r[0] !== 'docs' && r[0] !== 'settings') { location.hash = '#/platform'; return; }
 
   ({ dash: vDash, intake: vIntake, production: vProduction, stock: vStock, certs: vCerts,
@@ -167,41 +170,35 @@ function vLanding(V) {
   </div>`;
 }
 
-/* ---------------- login ---------------- */
-function ensureDemoUser(tenantId, role) {
-  const DB = Daira.DB();
-  let u = Object.values(DB.users).find(x => x.tenant_id === tenantId && x.role === role);
-  if (!u) {
-    const id = 'usr_demo_' + role + '_' + tenantId.slice(-4);
-    const m = Object.values(DB.members).find(x => x.tenant_id === tenantId);
-    u = { id, tenant_id: tenantId, name: role === 'manager' ? 'Gérant démo' : role === 'supervisor' ? 'Superviseur démo' : (m ? m.name : 'Membre démo'),
-          phone: '', role, created_at: new Date().toISOString() };
-    DB.users[id] = u; Daira.save();
-  }
-  return u;
-}
-
-function vLogin(V) {
-  const tenants = Daira.listTenants();
-  V.innerHTML = `<div class="card" style="max-width:460px;margin:2rem auto">
-    <h1>🌿 ${esc(t('login_t'))}</h1><p class="muted">${esc(t('login_sub'))}</p>
-    <label class="f">${esc(t('login_tenant'))}<select id="l_t">${tenants.map(x=>`<option value="${x.id}">${esc(x.name)} · ${esc(x.region)}</option>`).join('')}</select></label>
-    <label class="f">${esc(t('login_role'))}<select id="l_r">
-      <option value="super_admin">${esc(t('role_super_admin'))}</option>
-      <option value="manager" selected>${esc(t('role_manager'))}</option>
-      <option value="supervisor">${esc(t('role_supervisor'))}</option>
-      <option value="member">${esc(t('role_member'))}</option></select></label>
-    <button class="btn" id="l_go">${esc(t('login_go'))}</button>
-    <p style="text-align:center;margin-top:1rem"><a href="#/">${esc(t('nav_home'))}</a> · <a href="#/onboard">${esc(t('cta_start'))}</a></p></div>`;
-  $('#l_go').onclick = () => {
-    const tid = $('#l_t').value, role = $('#l_r').value;
-    if (role === 'super_admin') { Daira.setSession(tid, 'usr_superadmin'); location.hash = '#/platform'; return; }
-    const u = ensureDemoUser(tid, role);
-    const tn = Daira.DB().tenants[tid];
-    if (tn.settings && tn.settings.locale) setLang(tn.settings.locale);
-    Daira.setSession(tid, u.id);
-    location.hash = '#/dash';
+/* ---------------- login (credentials) ---------------- */
+function vLogin(V, tab) {
+  tab = tab === 'admin' ? 'admin' : 'coop';
+  V.innerHTML = `<div class="card" style="max-width:440px;margin:2rem auto">
+    <div style="text-align:center;font-size:2.4rem">🌿</div>
+    <h1 style="text-align:center">${esc(t('login_t'))}</h1>
+    <p class="muted" style="text-align:center">${esc(t('login_sub'))}</p>
+    <div class="row" style="margin-bottom:1rem">
+      <a href="#/login/coop" class="btn sm ${tab==='coop'?'':'ghost'}" style="flex:1;text-decoration:none">🏢 ${esc(t('login_coop'))}</a>
+      <a href="#/login/admin" class="btn sm ${tab==='admin'?'':'ghost'}" style="flex:1;text-decoration:none">🖥️ ${esc(t('login_admin'))}</a>
+    </div>
+    ${tab==='admin'?`<p class="muted" style="text-align:center">🔒 ${esc(t('login_hint_admin'))}</p>`:''}
+    <label class="f">${esc(t('login_user'))}<input id="lg_u" autocomplete="username" placeholder="${tab==='admin'?'admin':'T001'}"></label>
+    <label class="f">${esc(t('login_pin'))}<input id="lg_p" type="password" autocomplete="current-password" inputmode="numeric"></label>
+    <button class="btn" id="lg_go">🔑 ${esc(t('login_go'))}</button>
+    <p style="text-align:center;margin-top:1rem" class="muted">${esc(t('login_noaccess'))} <a href="#/onboard">${esc(t('cta_start'))}</a></p>
+    <p style="text-align:center"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
+  const go = () => {
+    try {
+      const u = Daira.authenticate($('#lg_u').value, $('#lg_p').value);
+      const tn = u.tenant_id !== '*' && Daira.DB().tenants[u.tenant_id];
+      if (tn && tn.settings && tn.settings.locale) setLang(tn.settings.locale);
+      Daira.setSession(u.tenant_id === '*' ? null : u.tenant_id, u.id);
+      if (u.role === 'super_admin') { Daira.DB().session.tenantId = null; Daira.save(); location.hash = '#/platform'; }
+      else location.hash = '#/dash';
+    } catch (e) { toast('⛔ ' + t('login_err'), true); }
   };
+  $('#lg_go').onclick = go;
+  $('#lg_p').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
 }
 
 /* ---------------- onboarding wizard ---------------- */
@@ -276,6 +273,13 @@ function vOnboard(V, step) {
 }
 
 /* ---------------- platform console (super_admin) ---------------- */
+let LAST_CRED = null;
+function credWaLink(phone, username, pin, tenantName) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  const wa = digits.startsWith('0') ? '212' + digits.slice(1) : digits;
+  const msg = '🌿 Daira — ' + t('cred_t') + '\n🏢 ' + tenantName + '\n👤 ' + t('login_user') + ': ' + username + '\n🔑 ' + t('login_pin') + ': ' + pin + '\n🔗 https://khalilkassimi.github.io/daira/#/login';
+  return 'https://wa.me/' + wa + '?text=' + encodeURIComponent(msg);
+}
 function vPlatform(V) {
   if (!Daira.can('tenant.provision')) { toast(t('no_perm'), true); location.hash = '#/'; return; }
   const tenants = Daira.listTenants();
@@ -283,6 +287,15 @@ function vPlatform(V) {
   V.innerHTML = `<div class="row between"><h1>🖥️ ${esc(t('plat_t'))}</h1>
     <a class="btn sm" href="#/onboard" style="text-decoration:none">${esc(t('plat_new'))}</a></div>
     <p class="muted">${esc(t('plat_sub'))}</p>
+    ${LAST_CRED ? `<div class="card" style="border:2px solid var(--ok)">
+      <h2 style="margin-top:0">🔑 ${esc(t('cred_t'))} — ${esc(LAST_CRED.tenantName)}</h2>
+      <div class="row between"><span>${esc(t('login_user'))}</span><b style="font-size:1.2rem">${esc(LAST_CRED.username)}</b></div>
+      <div class="row between"><span>${esc(t('login_pin'))}</span><b style="font-size:1.2rem">${esc(LAST_CRED.pin)}</b></div>
+      <div class="row" style="margin-top:.6rem">
+        <button class="btn sm ghost" id="credCopy" style="flex:1">📋 ${esc(t('cred_copied')).replace(' ✓','')}</button>
+        <a class="btn sm" style="flex:2;text-decoration:none;background:#25D366" target="_blank" rel="noopener"
+           href="${credWaLink(LAST_CRED.phone, LAST_CRED.username, LAST_CRED.pin, LAST_CRED.tenantName)}">💬 ${esc(t('cred_send'))}</a>
+      </div></div>` : ''}
     <h2>📩 ${esc(t('plat_req'))} (${reqs.length})</h2>
     ${reqs.map(r => `<div class="card" style="border-inline-start:4px solid var(--amber)">
       <div><b>${esc(r.logoEmoji || '🏢')} ${esc(r.name)}</b><br>
@@ -294,20 +307,41 @@ function vPlatform(V) {
       </div></div>`).join('') || `<p class="muted">—</p>`}
     <h2>🏢 ${esc(t('plat_sub'))}</h2>
     ${tenants.map(x => { const n = Object.values(Daira.DB().members).filter(m=>m.tenant_id===x.id).length;
+      const ou = Object.values(Daira.DB().users).find(u => u.tenant_id === x.id && u.is_owner);
       return `<div class="card"><div class="row between"><div><b>${x.branding.logo_emoji} ${esc(x.name)}</b><br>
-      <span class="muted">${esc(x.region)} · ${esc(x.sector)} · ${x.code} · ${n} ${esc(t('d_members'))}</span></div>
-      <span class="badge ok">${esc(x.status)}</span></div></div>`; }).join('')}`;
+      <span class="muted">${esc(x.region)} · ${esc(x.sector)} · ${x.code} · ${n} ${esc(t('d_members'))}<br>👤 <b>${esc(ou ? ou.username || x.code : x.code)}</b></span></div>
+      <span class="badge ok">${esc(x.status)}</span></div>
+      <button class="btn sm ghost" data-resetpin="${x.id}" style="margin-top:.4rem">🔑 ${esc(t('plat_reset'))}</button></div>`; }).join('')}`;
   V.querySelectorAll('[data-approve]').forEach(b => b.onclick = () => {
     const r = getRequests().find(x => x.id === b.dataset.approve);
     if (!r) return;
     try {
-      const { tenant } = Daira.provisionTenant(r);   // approved → isolated workspace
+      const pin = String(Math.floor(100000 + Math.random() * 900000));  // issued at approval
+      const { tenant } = Daira.provisionTenant(Object.assign({}, r, { pin }));
       updateRequest(r.id, { status: 'approved', tenant_id: tenant.id, tenant_code: tenant.code });
+      LAST_CRED = { username: tenant.code, pin, tenantName: tenant.name, phone: r.adminPhone || r.phone };
       toast('✅ ' + tenant.code + ' — ' + tenant.name);
       render();
     } catch (e) { toast(t('err') + ': ' + e.message, true); }
   });
   V.querySelectorAll('[data-reject]').forEach(b => b.onclick = () => { updateRequest(b.dataset.reject, { status: 'rejected' }); render(); });
+  const cc = $('#credCopy');
+  if (cc) cc.onclick = () => {
+    const txt = LAST_CRED.username + ' / ' + LAST_CRED.pin;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(t('cred_copied')));
+    else toast(txt);
+  };
+  // reset PIN per tenant
+  V.querySelectorAll('[data-resetpin]').forEach(b => b.onclick = () => {
+    const tid = b.dataset.resetpin;
+    const u = Object.values(Daira.DB().users).find(x => x.tenant_id === tid && x.is_owner);
+    if (!u) { toast(t('err'), true); return; }
+    const pin = String(Math.floor(100000 + Math.random() * 900000));
+    Daira.setCredentials(u.id, null, pin);
+    const tn = Daira.DB().tenants[tid];
+    LAST_CRED = { username: u.username || tn.code, pin, tenantName: tn.name, phone: u.phone || tn.phone };
+    render();
+  });
 }
 
 /* ---------------- dashboard ---------------- */
@@ -802,6 +836,10 @@ function vDocs(V) {
 function vSettings(V) {
   V.innerHTML = `<h1>⚙️ ${esc(t('set_t'))}</h1>
   <div class="card"><label class="f">${esc(t('set_lang'))}<select id="s_l">${LANGS.map(l=>`<option value="${l.code}" ${l.code===LANG?'selected':''}>${l.label}</option>`).join('')}</select></label></div>
+  <div class="card"><h2 style="margin-top:0">🔑 ${esc(t('set_pin_t'))}</h2>
+    <label class="f">${esc(t('set_oldpin'))}<input id="s_op" type="password"></label>
+    <label class="f">${esc(t('set_newpin'))}<input id="s_np" type="password"></label>
+    <button class="btn" id="s_pg">${esc(t('save'))}</button></div>
   <div class="card"><h2 style="margin-top:0">💾</h2>
     <button class="btn ghost" id="s_x">📥 ${esc(t('set_export'))}</button>
     <div class="row" style="margin-top:.6rem"><input type="file" id="s_i" accept=".json" style="margin:0"><button class="btn sm" id="s_ig">📤 ${esc(t('set_import'))}</button></div></div>
@@ -809,6 +847,13 @@ function vSettings(V) {
   <div class="card"><h2 style="margin-top:0;color:var(--danger)">⚠️ ${esc(t('set_danger'))}</h2>
     <button class="btn danger" id="s_r">🧹 ${esc(t('set_reset'))}</button></div>`;
   $('#s_l').onchange = e => setLang(e.target.value);
+  $('#s_pg').onclick = () => {
+    const u = Daira.currentUser();
+    if (!u || Daira.hashPin($('#s_op').value) !== u.pin_hash) { toast('⛔ ' + t('login_err'), true); return; }
+    if (!$('#s_np').value) { toast(t('err'), true); return; }
+    Daira.setCredentials(u.id, null, $('#s_np').value);
+    toast('✅ ' + t('pin_changed'));
+  };
   $('#s_x').onclick = () => {
     const blob = new Blob([JSON.stringify(Daira.exportTenant(), null, 1)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);

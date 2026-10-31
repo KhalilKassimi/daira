@@ -6,11 +6,23 @@
 
 function dairaSeed() {
   const DB = Daira.DB();
+  // migration: backfill credentials for DBs seeded before auth existed
+  try {
+    const sa = DB.users['usr_superadmin'];
+    if (sa && !sa.username) { sa.username = 'admin'; sa.pin_hash = Daira.hashPin('daira2026'); }
+    Object.values(DB.tenants).forEach(tn => {
+      const owner = Object.values(DB.users).find(u => u.tenant_id === tn.id && u.is_owner);
+      if (owner && !owner.username) { owner.username = tn.code; owner.pin_hash = Daira.hashPin('123456'); }
+    });
+    Daira.save();
+  } catch (e) {}
   if (DB.tenants && Object.keys(DB.tenants).length) return; // already seeded
 
   // platform super-admin (platform scope, sees all tenants)
   const saId = 'usr_superadmin';
-  DB.users[saId] = { id: saId, tenant_id: '*', name: 'Daira Platform', phone: '', role: 'super_admin', is_owner: false, created_at: new Date().toISOString() };
+  DB.users[saId] = { id: saId, tenant_id: '*', name: 'Daira Platform', phone: '', role: 'super_admin',
+    is_owner: false, username: 'admin', pin_hash: Daira.hashPin('daira2026'),
+    created_at: new Date().toISOString() };
 
   // --- provision demo tenant -----------------------------------------
   const { tenant, adminUserId } = Daira.provisionTenant({
@@ -26,6 +38,7 @@ function dairaSeed() {
     locale: 'fr',
   });
   Daira.setSession(tenant.id, adminUserId);
+  Daira.setCredentials(adminUserId, tenant.code, '123456');  // demo login: T001 / 123456
   const T = tenant.id;
 
   const put = (col, r) => { r.tenant_id = T; DB[col][r.id] = r; };
