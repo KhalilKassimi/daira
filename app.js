@@ -156,7 +156,7 @@ function vLanding(V) {
     <p>${esc(t('hero_sub'))}</p>
     <div class="cta-row">
       <a class="btn light" href="#/onboard" style="text-decoration:none">${esc(t('cta_start'))}</a>
-      <a class="btn outline" href="#/login" style="text-decoration:none">${esc(t('cta_demo'))}</a>
+      <a class="btn outline" href="#/login" style="text-decoration:none">🔑 ${esc(t('login_btn'))}</a>
     </div>
   </div>
   <div class="grid c2">${feats.map(([a,b,ico]) =>
@@ -185,6 +185,9 @@ function vLogin(V, tab) {
     <label class="f">${esc(t('login_user'))}<input id="lg_u" autocomplete="username" placeholder="${tab==='admin'?'admin':'T001'}"></label>
     <label class="f">${esc(t('login_pin'))}<input id="lg_p" type="password" autocomplete="current-password"></label>
     <button class="btn" id="lg_go">🔑 ${esc(t('login_go'))}</button>
+    <div class="card" style="background:var(--brand-soft);margin-top:1rem;text-align:center">
+      <span class="muted">🧪 ${esc(t('login_demo'))}</span><br><b>T001 / 123456</b>
+    </div>
     <p style="text-align:center;margin-top:1rem" class="muted">${esc(t('login_noaccess'))} <a href="#/onboard">${esc(t('cta_start'))}</a></p>
     <p style="text-align:center"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
   const go = () => {
