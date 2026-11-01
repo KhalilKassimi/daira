@@ -101,6 +101,18 @@ const WA_NUMBER = '212696672715';
 function getRequests() { try { return JSON.parse(localStorage.getItem(REQ_KEY)) || []; } catch (e) { return []; } }
 function saveRequest(r) { const a = getRequests(); a.unshift(r); try { localStorage.setItem(REQ_KEY, JSON.stringify(a)); } catch (e) {} }
 function updateRequest(id, patch) { const a = getRequests().map(r => r.id === id ? Object.assign({}, r, patch) : r); try { localStorage.setItem(REQ_KEY, JSON.stringify(a)); } catch (e) {} }
+/* Portable request code: lets the admin import a request submitted on another
+   device/browser (localStorage is per-device). The code travels via WhatsApp. */
+function reqCode(r) {
+  try { return 'DREQ1.' + btoa(unescape(encodeURIComponent(JSON.stringify(r)))); } catch (e) { return ''; }
+}
+function reqFromCode(code) {
+  const c = String(code || '').trim();
+  if (!c.startsWith('DREQ1.')) throw new Error('bad code');
+  const r = JSON.parse(decodeURIComponent(escape(atob(c.slice(6)))));
+  if (!r || !r.name) throw new Error('bad code');
+  return r;
+}
 /* ---------------- print engine (client-side, offline) ------------------
    Renders an official document in a new window with print-optimized CSS
    and triggers the browser print dialog (Save as PDF supported).        */
@@ -147,7 +159,9 @@ function waRequestLink(r) {
     '📞 ' + (r.phone || ''),
     '👤 ' + (r.adminName || '') + (r.adminPhone ? ' (' + r.adminPhone + ')' : ''),
     '',
-    'المرجو منحي حق الوصول إلى فضائي — Merci de m\u2019ouvrir mon espace.'];
+    'المرجو منحي حق الوصول إلى فضائي — Merci de m\u2019ouvrir mon espace.',
+    '',
+    '🔑 Code: ' + reqCode(r)];
   return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(lines.join('\n'));
 }
 
@@ -322,6 +336,7 @@ function vOnboard(V, step) {
     <div class="card" style="text-align:start"><b>${esc(r.logoEmoji || '🏢')} ${esc(r.name || '')}</b><br>
     <span class="muted">${esc(r.region || '')} · ${esc(r.sector || '')} · ${esc(r.phone || '')}</span></div>
     <a class="btn" style="text-decoration:none;background:#25D366" target="_blank" rel="noopener" href="${waRequestLink(r)}">💬 ${esc(t('ob_wa_btn'))}</a>
+    <div><button class="btn ghost sm" id="o_copycode" style="margin-top:.6rem">📋 ${esc(t('ob_copy_code'))}</button></div>
     <p class="muted" style="margin-top:.8rem"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
   }
 
@@ -352,8 +367,7 @@ function vOnboard(V, step) {
   document.querySelectorAll('.swatch[data-c]').forEach(s => s.onclick = () => { d.primaryColor = s.dataset.c; vOnboard(V, 3); });
   document.querySelectorAll('.swatch[data-e]').forEach(s => s.onclick = () => { d.logoEmoji = s.dataset.e; vOnboard(V, 3); });
   const fn = $('#o_finish');
-  if (fn) fn.onclick = () => {
-    grab();
+  if (fn) fn.onclick = () => {    grab();
     const req = { id: 'req_' + Date.now().toString(36), created_at: new Date().toISOString(), status: 'pending',
       name: d.name, name_ar: d.name_ar, region: d.region, sector: d.sector, phone: d.phone,
       odco: d.odco, email: d.email, cin: d.cin,
@@ -364,6 +378,12 @@ function vOnboard(V, step) {
     setLang(d.locale || 'fr');
     OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG, sector: '' };
     vOnboard(V, 4);
+  };
+  const oc = $('#o_copycode');
+  if (oc) oc.onclick = () => {
+    const code = reqCode(OB.lastReq || {});
+    if (navigator.clipboard && code) navigator.clipboard.writeText(code).then(() => toast(t('cred_copied'))).catch(() => prompt(t('ob_copy_code'), code));
+    else if (code) prompt(t('ob_copy_code'), code);
   };
 }
 
@@ -401,6 +421,10 @@ function vPlatform(V) {
         <button class="btn sm" data-approve="${r.id}" style="flex:1">✅ ${esc(t('plat_approve'))}</button>
         <button class="btn sm danger" data-reject="${r.id}">✖️ ${esc(t('plat_reject'))}</button>
       </div></div>`).join('') || `<p class="muted">—</p>`}
+    <div class="card"><h2 style="margin-top:0">📥 ${esc(t('req_import_t'))}</h2>
+      <p class="muted">${esc(t('req_import_d'))}</p>
+      <textarea id="rq_code" rows="3" placeholder="DREQ1.…" style="width:100%"></textarea>
+      <button class="btn sm" id="rq_imp" style="margin-top:.5rem">➕ ${esc(t('req_import_go'))}</button></div>
     <h2>🏢 ${esc(t('plat_sub'))}</h2>
     ${tenants.map(x => { const n = Object.values(Daira.DB().members).filter(m=>m.tenant_id===x.id).length;
       const ou = Object.values(Daira.DB().users).find(u => u.tenant_id === x.id && u.is_owner);
@@ -421,6 +445,18 @@ function vPlatform(V) {
     } catch (e) { toast(t('err') + ': ' + e.message, true); }
   });
   V.querySelectorAll('[data-reject]').forEach(b => b.onclick = () => { updateRequest(b.dataset.reject, { status: 'rejected' }); render(); });
+  const ri = $('#rq_imp');
+  if (ri) ri.onclick = () => {
+    try {
+      const r = reqFromCode($('#rq_code').value);
+      r.id = 'req_' + Date.now().toString(36);
+      r.status = 'pending';
+      r.created_at = r.created_at || new Date().toISOString();
+      saveRequest(r);
+      toast('✅ ' + t('req_import_ok'));
+      render();
+    } catch (e) { toast(t('req_import_err'), true); }
+  };
   const cc = $('#credCopy');
   if (cc) cc.onclick = () => {
     const txt = LAST_CRED.username + ' / ' + LAST_CRED.pin;
