@@ -20,7 +20,7 @@ to statutory governance and patronage dividends.
 - `seed.js` — demo tenant "Coopérative Tafoukt" (argan), 12 members, recipe, batches, run, sale, certs, AG+vote.
 - `i18n.js` — `fr` / `ar` / `darija` (Arabic script), RTL via `document.dir`. (Tifinagh was prototyped in v2 then removed per user request — « blach mn tifinagh ».)
 - `app.js` — hash router + views: landing (branding « Daïra | الدائرة التعاونية », trust badges ODCO/ONSSA/Bio/Fairtrade, CTAs demo/admin/request, in-hero language switcher), login (prefilled admin, 1-click demo fill, demo hint), validated onboarding wizard (ODCO/ICE, sector dropdown, Moroccan phone + email validation, step progress), dashboard,
-  intake (printable reception ticket + WhatsApp receipt), production, stock (POS/inventory/sales), certifications, QR passport (+ printable A4 poster + public `#/p/:code/:lot`),
+  intake (printable reception ticket + WhatsApp receipt), **catalog** (materials/products/recipes management — required before first intake/production on a new tenant), production, stock (POS/inventory/sales), certifications, QR passport (+ printable A4 poster + public `#/p/:code/:lot`),
   governance (full member registry: firstname/CIN/phone/gender/shares/status badges, assemblies with printable PV, votes, **ODCO compliance dashboard** with annual report export), dividends (individual printable slips + WhatsApp notices), docs, settings, platform console (pending requests approval, credential issuance, **data toolbox**: dated JSON backup / import / demo reset).
 - `qrcode.min.js` — vendored QR generator (no CDN dependency → works offline).
 

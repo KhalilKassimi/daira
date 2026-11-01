@@ -51,6 +51,7 @@ const NAV = [
   ['dash', 'nav_dash', '📊', 'dash'],
   ['intake', 'nav_intake', '🧺', 'intake.create'],
   ['production', 'nav_prod', '🏭', 'production.run'],
+  ['catalog', 'nav_catalog', '📦', 'recipe.manage'],
   ['stock', 'nav_stock', '💰', 'sale.create'],
   ['certs', 'nav_certs', '📜', 'cert.manage'],
   ['passport', 'nav_pass', '🔳', 'passport.generate'],
@@ -192,7 +193,7 @@ function render() {
   if (u.role !== 'super_admin' && !s.tenantId) { location.hash = '#/login'; return; }
   if (u && u.role === 'super_admin' && r[0] !== 'platform' && r[0] !== 'docs' && r[0] !== 'settings') { location.hash = '#/platform'; return; }
 
-  ({ dash: vDash, intake: vIntake, production: vProduction, stock: vStock, certs: vCerts,
+  ({ dash: vDash, intake: vIntake, production: vProduction, catalog: vCatalog, stock: vStock, certs: vCerts,
      passport: vPassport, gov: vGov, dividends: vDividends, docs: vDocs, settings: vSettings,
      platform: vPlatform }[r[0]] || vDash)(V, r.slice(1));
   window.scrollTo(0, 0);
@@ -526,6 +527,7 @@ function vDash(V) {
 
   const acts = [
     ['intake', 'd_new_intake', '🧺', 'intake.create'], ['production', 'd_new_run', '🏭', 'production.run'],
+    ['catalog', 'd_new_catalog', '📦', 'recipe.manage'],
     ['stock', 'd_new_sale', '💰', 'sale.create'], ['gov', 'd_new_assembly', '🏛️', 'assembly.manage'],
   ].filter(a => Daira.can(a[3]));
 
@@ -682,6 +684,128 @@ function vProduction(V, args) {
       window.scrollTo(0, document.body.scrollHeight);
     } catch (e) { toast(t('err') + ': ' + e.message, true); }
   };
+}
+
+/* ---------------- catalog: materials / products / recipes ---------------- */
+function vCatalog(V, args) {
+  if (!guard('recipe.manage')) return;
+  const tab = args[0] || 'materials';
+  const tabs = [['materials','cat_mat','🌿'],['products','cat_prod','🫙'],['recipes','cat_rec','📋']];
+  let body = `<h1>📦 ${esc(t('cat_t'))}</h1>
+  <div class="row" style="margin-bottom:.8rem;flex-wrap:wrap">${tabs.map(([k,l,ico])=>`<a href="#/catalog/${k}" class="btn sm ${tab===k?'':'ghost'}" style="flex:1;text-decoration:none;min-width:90px">${ico} ${esc(t(l))}</a>`).join('')}</div>`;
+  if (tab === 'materials') body += vCatMaterials();
+  if (tab === 'products') body += vCatProducts();
+  if (tab === 'recipes') body += vCatRecipes();
+  V.innerHTML = body;
+  bindCatalog(V, tab);
+}
+function catName(x) { return esc(LANG === 'fr' ? x.name : (x.name_ar || x.name)); }
+function catDelBtn(col, id) { return `<button class="btn sm danger" data-delcol="${col}" data-delid="${id}">${esc(t('cat_del'))}</button>`; }
+
+function vCatMaterials() {
+  const ms = Daira.scoped('materials');
+  return `<div class="card" style="overflow-x:auto"><table>
+    <tr><th>${esc(t('cat_name'))}</th><th>${esc(t('cat_unit'))}</th><th>${esc(t('cat_price'))}</th><th></th></tr>
+    ${ms.map(m=>`<tr><td><b>${catName(m)}</b></td><td>${esc(m.unit)}</td><td>${m.base_price} MAD</td><td>${catDelBtn('materials', m.id)}</td></tr>`).join('')
+    || `<tr><td colspan="4" class="muted">${esc(t('cat_empty'))}</td></tr>`}</table></div>
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('cat_mat'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('cat_name'))}<input id="cm_n"></label>
+    <label class="f">${esc(t('cat_name_ar'))}<input id="cm_na"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('cat_unit'))}<select id="cm_u"><option value="kg">kg</option><option value="L">L</option><option value="pièce">pièce</option></select></label>
+    <label class="f">${esc(t('cat_price'))}<input id="cm_p" type="number" min="0" step="0.1"></label></div>
+    <button class="btn" id="cm_go">${esc(t('cat_add'))}</button></div>`;
+}
+
+function vCatProducts() {
+  const ps = Daira.scoped('products');
+  return `<div class="card" style="overflow-x:auto"><table>
+    <tr><th>${esc(t('cat_name'))}</th><th>${esc(t('cat_sku'))}</th><th>${esc(t('cat_sale_price'))}</th><th></th></tr>
+    ${ps.map(p=>`<tr><td><b>${catName(p)}</b><br><span class="muted">${esc(p.unit)}</span></td><td class="muted">${esc(p.sku||'—')}</td><td>${p.sale_price} MAD</td><td>${catDelBtn('products', p.id)}</td></tr>`).join('')
+    || `<tr><td colspan="4" class="muted">${esc(t('cat_empty'))}</td></tr>`}</table></div>
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('cat_prod'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('cat_name'))}<input id="cp_n"></label>
+    <label class="f">${esc(t('cat_name_ar'))}<input id="cp_na"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('cat_sku'))}<input id="cp_sku"></label>
+    <label class="f">${esc(t('cat_unit'))}<select id="cp_u"><option value="kg">kg</option><option value="L">L</option><option value="pièce">pièce</option></select></label></div>
+    <label class="f">${esc(t('cat_sale_price'))}<input id="cp_p" type="number" min="0" step="0.1"></label>
+    <button class="btn" id="cp_go">${esc(t('cat_add'))}</button></div>`;
+}
+
+function crRow(kind) {
+  const items = kind === 'in' ? Daira.scoped('materials') : Daira.scoped('products');
+  const cls = kind === 'in' ? 'cr-in' : 'cr-out';
+  return `<div class="row ${cls}" style="margin-bottom:.4rem">
+    <select class="${cls}-id" style="flex:2">${items.map(x=>`<option value="${x.id}">${catName(x)}</option>`).join('')}</select>
+    <input class="${cls}-q" type="number" min="0" step="0.1" placeholder="${esc(t('cat_qty'))}" style="flex:1">
+    <button class="btn sm danger cr-x" type="button">✕</button></div>`;
+}
+function vCatRecipes() {
+  const rs = Daira.scoped('recipes');
+  const mName = id => { const m = Daira.DB().materials[id]; return m ? catName(m) : '?'; };
+  const pName = id => { const p = Daira.DB().products[id]; return p ? catName(p) : '?'; };
+  return rs.map(r=>`<div class="card"><div class="row between"><b>${catName(r)}</b><span class="badge warn">${esc(t('cat_loss'))}: ${r.loss_pct}%</span></div>
+    <div class="muted">${esc(t('cat_inputs'))}: ${(r.inputs||[]).map(i=>mName(i.material_id)+' × '+i.qty_per_unit).join(' + ')}</div>
+    <div class="muted">${esc(t('cat_outputs'))}: ${(r.outputs||[]).map(o=>pName(o.product_id)+' × '+o.per_input_unit).join(' + ')}</div>
+    <div style="margin-top:.4rem">${catDelBtn('recipes', r.id)}</div></div>`).join('')
+  + `<div class="card"><h2 style="margin-top:0">➕ ${esc(t('cat_rec'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('cat_name'))}<input id="cr_n"></label>
+    <label class="f">${esc(t('cat_name_ar'))}<input id="cr_na"></label></div>
+    <label class="f">${esc(t('cat_loss'))}<input id="cr_loss" type="number" min="0" max="100" value="5" step="0.1"></label>
+    <h3 style="margin-bottom:.3rem">${esc(t('cat_inputs'))}</h3><div id="cr_ins"></div>
+    <button class="btn sm ghost" id="cr_addin" type="button">${esc(t('cat_add_row'))}</button>
+    <h3 style="margin-bottom:.3rem">${esc(t('cat_outputs'))}</h3><div id="cr_outs"></div>
+    <button class="btn sm ghost" id="cr_addout" type="button">${esc(t('cat_add_row'))}</button>
+    <label class="f" style="margin-top:.6rem">${esc(t('cat_checkpoints'))}<textarea id="cr_cp" rows="2"></textarea></label>
+    <button class="btn" id="cr_go" style="margin-top:.6rem">${esc(t('cat_add'))}</button></div>`;
+}
+
+function bindCatalog(V, tab) {
+  V.querySelectorAll('[data-delcol]').forEach(b => b.onclick = () => {
+    try { Daira.requirePerm('recipe.manage'); } catch (e) { toast(t('no_perm'), true); return; }
+    const col = b.dataset.delcol, id = b.dataset.delid;
+    const used = col === 'materials'
+      ? Object.values(Daira.DB().recipes).some(r => r.tenant_id === Daira.activeTenantId() && (r.inputs||[]).some(i => i.material_id === id))
+        || Daira.scoped('rawBatches').some(x => x.material_id === id)
+      : col === 'products'
+      ? Object.values(Daira.DB().recipes).some(r => r.tenant_id === Daira.activeTenantId() && (r.outputs||[]).some(o => o.product_id === id))
+        || Daira.scoped('finishedLots').some(x => x.product_id === id)
+      : false;
+    if (used) { toast(t('cat_used'), true); return; }
+    if (!confirm('OK?')) return;
+    delete Daira.DB()[col][id];
+    Daira.save(); render();
+  });
+  if (tab === 'materials') $('#cm_go').onclick = () => {
+    const name = $('#cm_n').value.trim(); if (!name) { toast(t('v_required'), true); return; }
+    Daira.put('materials', { id: 'mat_' + Date.now().toString(36), name, name_ar: $('#cm_na').value.trim(),
+      unit: $('#cm_u').value, base_price: Number($('#cm_p').value) || 0 });
+    toast('✅'); render();
+  };
+  if (tab === 'products') $('#cp_go').onclick = () => {
+    const name = $('#cp_n').value.trim(); if (!name) { toast(t('v_required'), true); return; }
+    Daira.put('products', { id: 'prd_' + Date.now().toString(36), name, name_ar: $('#cp_na').value.trim(),
+      sku: $('#cp_sku').value.trim(), unit: $('#cp_u').value, sale_price: Number($('#cp_p').value) || 0 });
+    toast('✅'); render();
+  };
+  if (tab === 'recipes') {
+    $('#cr_addin').onclick = () => $('#cr_ins').insertAdjacentHTML('beforeend', crRow('in'));
+    $('#cr_addout').onclick = () => $('#cr_outs').insertAdjacentHTML('beforeend', crRow('out'));
+    V.addEventListener('click', e => { if (e.target.classList && e.target.classList.contains('cr-x')) e.target.closest('.row').remove(); });
+    $('#cr_ins').insertAdjacentHTML('beforeend', crRow('in'));
+    $('#cr_outs').insertAdjacentHTML('beforeend', crRow('out'));
+    $('#cr_go').onclick = () => {
+      const name = $('#cr_n').value.trim(); if (!name) { toast(t('v_required'), true); return; }
+      const inputs = [...V.querySelectorAll('.cr-in')].map(row => ({
+        material_id: row.querySelector('.cr-in-id').value, qty_per_unit: Number(row.querySelector('.cr-in-q').value) || 0 })).filter(i => i.material_id && i.qty_per_unit > 0);
+      const outputs = [...V.querySelectorAll('.cr-out')].map(row => ({
+        product_id: row.querySelector('.cr-out-id').value, per_input_unit: Number(row.querySelector('.cr-out-q').value) || 0 })).filter(o => o.product_id && o.per_input_unit > 0);
+      if (!inputs.length || !outputs.length) { toast(t('v_required'), true); return; }
+      Daira.put('recipes', { id: 'rcp_' + Date.now().toString(36), name, name_ar: $('#cr_na').value.trim(),
+        loss_pct: Number($('#cr_loss').value) || 0, inputs, outputs,
+        checkpoints: $('#cr_cp').value.split('\n').map(s => s.trim()).filter(Boolean) });
+      toast('✅'); render();
+    };
+  }
 }
 
 /* ---------------- stock & POS ---------------- */
