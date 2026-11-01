@@ -16,7 +16,9 @@ to statutory governance and patronage dividends.
 ## Module map (code)
 - `domain.js` — tenant guard (`scoped/get/put`), RBAC (`can/requirePerm`), `provisionTenant`,
   `ingestContribution`, `runTransformation`, `createSale`/`adjustInventory`, `allocateDividends`/`confirmDividends`,
-  `buildPassport`, `recordVote`, `exportTenant`.
+  `buildPassport`, `recordVote`, `exportTenant`. `provisionTenant` captures Loi 112-12 fields:
+  `category` (صنف 1/2/3), `purpose` (الغرض الرئيسي), `province` (الإقليم), `share_value` (MAD),
+  `capital_liberated`, `denom_cert_date` (60-day validity), `legal_docs` checklist; members carry `fonction`.
 - `seed.js` — demo tenant "Coopérative Tafoukt" (argan), 12 members, recipe, batches, run, sale, certs, AG+vote.
 - `i18n.js` — `fr` / `ar` / `darija` (Arabic script), RTL via `document.dir`. (Tifinagh was prototyped in v2 then removed per user request — « blach mn tifinagh ».)
 - `app.js` — hash router + views: landing (branding « Daïra | الدائرة التعاونية », trust badges ODCO/ONSSA/Bio/Fairtrade, CTAs demo/admin/request, in-hero language switcher), login (prefilled admin, 1-click demo fill, demo hint), validated onboarding wizard (ODCO/ICE, sector dropdown, Moroccan phone + email validation, step progress), dashboard,

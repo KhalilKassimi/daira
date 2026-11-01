@@ -156,7 +156,7 @@ function tenantHeader() {
 function waRequestLink(r) {
   const lines = ['🌿 Daira — Demande d\u2019accès / طلب ولوج',
     '🏢 ' + (r.name || '') + (r.name_ar ? ' — ' + r.name_ar : ''),
-    '📍 ' + (r.region || '') + ' · ' + (r.sector || ''),
+    '📍 ' + (r.region || '') + (r.province ? ' · ' + r.province : '') + ' · ' + (r.sector || '') + (r.category ? ' · صنف ' + r.category : ''),
     '📞 ' + (r.phone || ''),
     '👤 ' + (r.adminName || '') + (r.adminPhone ? ' (' + r.adminPhone + ')' : ''),
     '',
@@ -282,7 +282,7 @@ function vLogin(V, tab) {
 }
 
 /* ---------------- onboarding wizard (validated) ---------------- */
-const OB = { step: 1, data: { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: 'fr', sector: '' } };
+const OB = { step: 1, data: { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: 'fr', sector: '', category: '', share_value: '100' } };
 const OB_COLORS = ['#0e6b4a','#8a5a2b','#1f6f9e','#7b2d8b','#b03a2e','#2e4057'];
 const OB_EMOJIS = ['🌿','🫒','🍯','🧶','🌵','🐝','🥜','🫘'];
 const SECTORS = [['Oléicole','الزيتون'],['Argan','أركان'],['PAM','النباتات العطرية'],['Laitier','الحليب'],['Apicole','العسل'],['Artisanat','الصناعة التقليدية']];
@@ -296,6 +296,7 @@ function obValidate(step) {
     if (!d.name || !d.name.trim()) errs.name = t('v_required');
     if (!d.odco || !d.odco.trim()) errs.odco = t('v_required');
     if (!d.sector) errs.sector = t('v_required');
+    if (!d.category) errs.category = t('v_required');
     if (!d.region || !d.region.trim()) errs.region = t('v_required');
   }
   if (step === 2) {
@@ -320,9 +321,23 @@ function vOnboard(V, step) {
     <label class="f">${esc(t('ob_odco'))}<input id="o_odco" value="${esc(d.odco||'')}" placeholder="ODCO-… / ICE …" class="${errs.odco?'invalid':''}">${ferr('odco')}</label>
     <label class="f">${esc(t('ob_sector'))}<select id="o_sector" class="${errs.sector?'invalid':''}">
       <option value="">—</option>${SECTORS.map(([fr,ar])=>`<option value="${fr}" ${d.sector===fr?'selected':''}>${fr} / ${ar}</option>`).join('')}</select>${ferr('sector')}</label>
+    <label class="f">${esc(t('ob_category'))}<select id="o_category" class="${errs.category?'invalid':''}">
+      <option value="">—</option>
+      <option value="1" ${d.category==='1'?'selected':''}>${esc(t('ob_cat1'))}</option>
+      <option value="2" ${d.category==='2'?'selected':''}>${esc(t('ob_cat2'))}</option>
+      <option value="3" ${d.category==='3'?'selected':''}>${esc(t('ob_cat3'))}</option></select>${ferr('category')}</label>
+    <label class="f">${esc(t('ob_purpose'))}<input id="o_purpose" value="${esc(d.purpose||'')}" placeholder="…"></label>
     <div class="grid c2">
       <label class="f">${esc(t('ob_region'))}<input id="o_region" value="${esc(d.region||'')}" placeholder="Souss-Massa" class="${errs.region?'invalid':''}">${ferr('region')}</label>
+      <label class="f">${esc(t('ob_province'))}<input id="o_province" value="${esc(d.province||'')}"></label>
+    </div>
+    <div class="grid c2">
       <label class="f">${esc(t('ob_phone'))}<input id="o_phone" value="${esc(d.phone||'')}"></label>
+      <label class="f">${esc(t('ob_denom_date'))}<input id="o_denom_cert_date" type="date" value="${esc(d.denom_cert_date||'')}"></label>
+    </div>
+    <div class="grid c2">
+      <label class="f">${esc(t('ob_share_value'))}<input id="o_share_value" type="number" min="0" step="1" value="${esc(d.share_value||'100')}"></label>
+      <label class="f">${esc(t('ob_capital_lib'))}<input id="o_capital_liberated" type="number" min="0" step="1" value="${esc(d.capital_liberated||'')}"></label>
     </div>`;
   if (OB.step === 2) body = `
     <label class="f">${esc(t('ob_president'))}<input id="o_adminName" value="${esc(d.adminName||'')}" class="${errs.adminName?'invalid':''}">${ferr('adminName')}</label>
@@ -355,10 +370,14 @@ function vOnboard(V, step) {
     </div>`:''}</div>`;
 
   const grab = () => {
-    ['name','odco','region','phone','adminName','cin','adminPhone','email'].forEach(k => {
+    ['name','odco','region','phone','province','purpose','denom_cert_date','adminName','cin','adminPhone','email'].forEach(k => {
       const el = document.getElementById('o_'+k); if (el) d[k] = el.value.trim();
     });
+    ['share_value','capital_liberated'].forEach(k => {
+      const el = document.getElementById('o_'+k); if (el) d[k] = el.value;
+    });
     const sec = document.getElementById('o_sector'); if (sec) d.sector = sec.value;
+    const cat = document.getElementById('o_category'); if (cat) d.category = cat.value;
     const loc = document.getElementById('o_locale'); if (loc) d.locale = loc.value;
   };
   const nx = $('#o_next');
@@ -375,14 +394,16 @@ function vOnboard(V, step) {
   const fn = $('#o_finish');
   if (fn) fn.onclick = () => {    grab();
     const req = { id: 'req_' + Date.now().toString(36), created_at: new Date().toISOString(), status: 'pending',
-      name: d.name, name_ar: d.name_ar, region: d.region, sector: d.sector, phone: d.phone,
+      name: d.name, name_ar: d.name_ar, region: d.region, province: d.province, sector: d.sector, phone: d.phone,
       odco: d.odco, email: d.email, cin: d.cin,
+      category: d.category, purpose: d.purpose, share_value: d.share_value,
+      capital_liberated: d.capital_liberated, denom_cert_date: d.denom_cert_date,
       adminName: d.adminName, adminPhone: d.adminPhone,
       primaryColor: d.primaryColor, logoEmoji: d.logoEmoji, locale: d.locale };
     saveRequest(req);
     OB.lastReq = req;
     setLang(d.locale || 'fr');
-    OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG, sector: '' };
+    OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG, sector: '', category: '', share_value: '100' };
     vOnboard(V, 4);
   };
   const oc = $('#o_copycode');
@@ -1041,19 +1062,28 @@ function memberStatusBadge(st) {
   if (st === 'left') return `<span class="badge neutral">${esc(t('st_left'))}</span>`;
   return `<span class="badge ok">${esc(t('st_active'))}</span>`;
 }
+function fonctionBadge(f) {
+  if (!f || f === 'member') return `<span class="muted">${esc(t('fo_member'))}</span>`;
+  const k = 'fo_' + ({ president: 'president', vp: 'vp', secretary: 'secretary', vsecretary: 'vsecretary', treasurer: 'treasurer', vtreasurer: 'vtreasurer', advisor: 'advisor' }[f] || 'member');
+  return `<span class="badge info">${esc(t(k))}</span>`;
+}
+const FONCTIONS = ['member','president','vp','secretary','vsecretary','treasurer','vtreasurer','advisor'];
 function vGovMembers() {
   const ms = Daira.scoped('members');
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const sv = tn.share_value || 100;
   return `<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>${esc(t('v_member'))}</th><th>${esc(t('gm_phone'))}</th><th></th></tr>
-    ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td><b>${esc(m.name)}</b> ${esc(m.firstname||'')}<br><span class="muted">${esc(m.name_ar||'')} · ${esc(m.village||'')} · ${esc(m.shares||0)} ${esc(t('gm_shares')).split(' ')[0]}</span></td><td class="muted">${esc(m.phone||'—')}</td><td>${memberStatusBadge(m.status)}</td></tr>`).join('')}</table></div>
+    ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td><b>${esc(m.name)}</b> ${esc(m.firstname||'')}<br><span class="muted">${esc(m.village||'')} · ${esc(m.shares||0)} × ${sv} MAD</span><br>${fonctionBadge(m.fonction)}</td><td class="muted">${esc(m.phone||'—')}</td><td>${memberStatusBadge(m.status)}</td></tr>`).join('')}</table></div>
   <div class="card"><h2 style="margin-top:0">➕ ${esc(t('g_add_member'))}</h2>
     <div class="grid c2"><label class="f">${esc(t('gm_lastname'))}<input id="gm_n"></label>
     <label class="f">${esc(t('gm_firstname'))}<input id="gm_fn" placeholder="${esc(t('ph_firstname'))}"></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_cin'))}<input id="gm_cin"></label>
     <label class="f">${esc(t('gm_phone'))}<input id="gm_ph" placeholder="06…"></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_gender'))}<select id="gm_g"><option value="f">${esc(t('gender_f'))}</option><option value="m">${esc(t('gender_m'))}</option></select></label>
-    <label class="f">${esc(t('gm_shares'))}<input id="gm_sh" type="number" value="100" min="0"></label></div>
-    <div class="grid c2"><label class="f">${esc(t('gm_joindate'))}<input id="gm_jd" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
-    <label class="f">${esc(t('gm_status'))}<select id="gm_st"><option value="active">${esc(t('st_active'))}</option><option value="pending">${esc(t('st_pending'))}</option><option value="left">${esc(t('st_left'))}</option></select></label></div>
+    <label class="f">${esc(t('gm_fonction'))}<select id="gm_f">${FONCTIONS.map(f=>`<option value="${f}">${esc(t('fo_'+f))}</option>`).join('')}</select></label></div>
+    <div class="grid c2"><label class="f">${esc(t('gm_shares'))}<input id="gm_sh" type="number" value="1" min="0"></label>
+    <label class="f">${esc(t('gm_joindate'))}<input id="gm_jd" type="date" value="${new Date().toISOString().slice(0,10)}"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('gm_status'))}<select id="gm_st"><option value="active">${esc(t('st_active'))}</option><option value="pending">${esc(t('st_pending'))}</option><option value="left">${esc(t('st_left'))}</option></select></label></div>
     <button class="btn" id="gm_go">${esc(t('save'))}</button></div>`;
 }
 function vGovAsm() {
@@ -1109,8 +1139,26 @@ function printPV(asmId) {
 }
 
 /* ---------------- ODCO compliance dashboard ---------------- */
+/* Loi 112-12: denomination certificate valid 60 days from issuance (ODCO form) */
+function denomValidity(tn) {
+  if (!tn.denom_cert_date) return null;
+  const issued = new Date(tn.denom_cert_date + 'T00:00:00');
+  if (isNaN(issued)) return null;
+  const left = 60 - Math.floor((Date.now() - issued.getTime()) / 864e5);
+  return { left, expired: left < 0, until: new Date(issued.getTime() + 60 * 864e5).toISOString().slice(0, 10) };
+}
+const LEGAL_DOCS = ['doc_statuts','doc_members','doc_ids','doc_denom','doc_admin','doc_bank','doc_inkind'];
+function toggleDoc(key) {
+  try { Daira.requirePerm('assembly.manage'); } catch (e) { toast(t('no_perm'), true); return; }
+  const tn = Daira.DB().tenants[Daira.activeTenantId()];
+  if (!tn) return;
+  tn.legal_docs = tn.legal_docs || {};
+  tn.legal_docs[key] = !tn.legal_docs[key];
+  Daira.save(); render();
+}
 function vGovOdco() {
   const ms = Daira.scoped('members');
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
   const nM = ms.filter(m => m.gender === 'm').length, nF = ms.filter(m => m.gender !== 'm').length;
   const asms = [...Daira.scoped('assemblies')].reverse();
   const last = asms[0];
@@ -1121,6 +1169,12 @@ function vGovOdco() {
   const dVol = volPrev ? Math.round((vol - volPrev) / volPrev * 100) : null;
   const lastDiv = [...Daira.scoped('dividendCampaigns')].reverse()[0];
   const reserve = lastDiv ? Daira.round2(lastDiv.surplus * 0.10) : 0;
+  // Loi 112-12 — capital: parts × valeur nominale
+  const sv = tn.share_value || 100;
+  const capSub = ms.reduce((s, m) => s + (Number(m.shares) || 0), 0) * sv;
+  const dv = denomValidity(tn);
+  const docs = tn.legal_docs || {};
+  const docsDone = LEGAL_DOCS.filter(k => docs[k]).length;
   const kpi = (l, v, sub) => `<div class="kpi"><div class="n">${v}</div><div class="l">${l}</div>${sub ? `<div class="muted">${sub}</div>` : ''}</div>`;
   return `
   <div class="grid c2" style="grid-template-columns:repeat(2,1fr)">
@@ -1129,31 +1183,60 @@ function vGovOdco() {
     ${kpi(esc(t('odco_volume')), Math.round(vol) + ' kg', dVol === null ? y : (dVol >= 0 ? '+' : '') + dVol + '% vs ' + (y - 1))}
     ${kpi(esc(t('odco_reserve')), fmtM(reserve), lastDiv ? esc(t('v_season')) + ' ' + esc(lastDiv.season) : '—')}
   </div>
+  <div class="card"><h2 style="margin-top:0">⚖️ Loi 112-12</h2>
+    <div class="row between"><span>${esc(t('odco_category'))}</span><b>${tn.category ? 'صنف ' + esc(tn.category) : '—'}</b></div>
+    <div class="row between"><span>${esc(t('odco_capital_sub'))}</span><b>${fmtM(capSub)}</b></div>
+    <div class="muted" style="margin-bottom:.4rem">${esc(t('gm_shares'))}: ${ms.reduce((s, m) => s + (Number(m.shares) || 0), 0)} × ${sv} MAD</div>
+    <div class="row between"><span>${esc(t('odco_capital_lib'))}</span><b>${fmtM(tn.capital_liberated || 0)}</b></div>
+    <div class="row between"><span>${esc(t('odco_founders'))}</span><b class="${ms.length >= 5 ? '' : ''}">${ms.length} / 5 ${ms.length >= 5 ? '✅' : '⚠️'}</b></div>
+    <div class="row between"><span>${esc(t('odco_denom'))}</span><b>${
+      dv ? (dv.expired
+        ? `<span style="color:var(--danger)">⚠️ ${esc(t('odco_denom_expired'))}</span>`
+        : `${fmtD(dv.until)} · ${dv.left} ${esc(t('odco_denom_days'))} ✅`)
+      : '—'}</b></div>
+  </div>
+  <div class="card"><h2 style="margin-top:0">📁 ${esc(t('odco_docs'))} <span class="muted">(${docsDone}/${LEGAL_DOCS.length})</span></h2>
+    ${LEGAL_DOCS.map(k => `<label class="row between" style="padding:.45rem 0;border-bottom:1px solid var(--line);cursor:pointer">
+      <span>${docs[k] ? '✅' : '⬜'} ${esc(t(k))}</span>
+      <input type="checkbox" ${docs[k] ? 'checked' : ''} onchange="toggleDoc('${k}')" style="width:auto;margin:0"></label>`).join('')}
+  </div>
   <button class="btn" onclick="printOdco()" style="margin-top:.8rem">${esc(t('odco_export'))}</button>`;
 }
 
 function printOdco() {
   const h = tenantHeader();
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
   const ms = Daira.scoped('members');
   const y = new Date().getFullYear();
   const vol = Daira.scoped('rawBatches').filter(b => String(b.received_at).startsWith(y)).reduce((s, b) => s + b.qty, 0);
   const sales = Daira.scoped('sales').filter(s => String(s.created_at).startsWith(y)).reduce((s, x) => s + x.total, 0);
   const lastDiv = [...Daira.scoped('dividendCampaigns')].reverse()[0];
+  const sv = tn.share_value || 100;
+  const capSub = ms.reduce((s, m) => s + (Number(m.shares) || 0), 0) * sv;
+  const dv = denomValidity(tn);
+  const docs = tn.legal_docs || {};
   const html = `
   <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
-    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}</div>
+    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}${tn.province ? ' · ' + esc(tn.province) : ''}</div>
     <h1 style="font-size:17px;margin-top:8px">${esc(t('odco_t'))} — ${esc(t('odco_export'))} ${y}</h1></div>
   <table>
-    <tr><th style="width:55%">${esc(t('odco_members'))}</th><td>${ms.length} (👨 ${ms.filter(m => m.gender === 'm').length} · 👩 ${ms.filter(m => m.gender !== 'm').length})</td></tr>
+    <tr><th style="width:55%">${esc(t('odco_category'))}</th><td>${tn.category ? 'صنف ' + esc(tn.category) : '—'}</td></tr>
+    <tr><th>${esc(t('ob_purpose'))}</th><td>${esc(tn.purpose || '—')}</td></tr>
+    <tr><th>${esc(t('odco_capital_sub'))}</th><td>${fmtM(capSub)} (${ms.reduce((s, m) => s + (Number(m.shares) || 0), 0)} × ${sv} MAD)</td></tr>
+    <tr><th>${esc(t('odco_capital_lib'))}</th><td>${fmtM(tn.capital_liberated || 0)}</td></tr>
+    <tr><th>${esc(t('odco_denom'))}</th><td>${dv ? (dv.expired ? '⚠️ ' + esc(t('odco_denom_expired')) : fmtD(dv.until) + ' (' + dv.left + ' ' + esc(t('odco_denom_days')) + ')') : '—'}</td></tr>
+    <tr><th>${esc(t('odco_members'))}</th><td>${ms.length} (👨 ${ms.filter(m => m.gender === 'm').length} · 👩 ${ms.filter(m => m.gender !== 'm').length})</td></tr>
     <tr><th>${esc(t('odco_volume'))} ${y}</th><td>${Math.round(vol)} kg</td></tr>
     <tr><th>Ventes ${y}</th><td>${fmtM(sales)}</td></tr>
     <tr><th>${esc(t('odco_reserve'))}</th><td>${lastDiv ? fmtM(Daira.round2(lastDiv.surplus * 0.10)) : '—'}</td></tr>
     <tr><th>Assemblées tenues</th><td>${Daira.scoped('assemblies').length}</td></tr>
     <tr><th>Certifications valides</th><td>${Daira.scoped('certifications').filter(c => c.status === 'valid').length}</td></tr>
   </table>
+  <h2>${esc(t('odco_docs'))}</h2>
+  <table>${LEGAL_DOCS.map(k => `<tr><th style="width:55%">${esc(t(k))}</th><td>${docs[k] ? '✅' : '⬜'}</td></tr>`).join('')}</table>
   <h2>Registre des membres</h2>
-  <table><tr><th>#</th><th>${esc(t('gm_lastname'))}</th><th>${esc(t('gm_cin'))}</th><th>${esc(t('pr_parts'))}</th><th>${esc(t('gm_status'))}</th></tr>
-  ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${esc(m.shares || 0)}</td><td>${esc(m.status)}</td></tr>`).join('')}</table>
+  <table><tr><th>#</th><th>${esc(t('gm_lastname'))}</th><th>${esc(t('gm_cin'))}</th><th>${esc(t('gm_fonction'))}</th><th>${esc(t('pr_parts'))}</th><th>${esc(t('gm_status'))}</th></tr>
+  ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${esc(m.fonction && m.fonction !== 'member' ? t('fo_' + m.fonction) : '—')}</td><td>${esc(m.shares || 0)}</td><td>${esc(m.status)}</td></tr>`).join('')}</table>
   <div class="sig"><div>Le président<br><br><br></div><div>Cachet de la coopérative<br><br><br></div></div>
   <div class="foot">${esc(t('made_in'))} · Daira</div>`;
   printDoc(t('odco_export'), html);
@@ -1166,7 +1249,7 @@ function bindGov(V, tab) {
       Daira.put('members', { id: 'mbr_' + Date.now().toString(36), code: 'MBR-' + String(ms.length+1).padStart(3,'0'),
         name: $('#gm_n').value.trim(), firstname: $('#gm_fn').value.trim(),
         cin: $('#gm_cin').value.trim(), phone: $('#gm_ph').value.trim(),
-        gender: $('#gm_g').value, shares: Number($('#gm_sh').value) || 0,
+        gender: $('#gm_g').value, fonction: $('#gm_f').value, shares: Number($('#gm_sh').value) || 0,
         joined_at: new Date($('#gm_jd').value || Date.now()).toISOString(),
         status: $('#gm_st').value });
       toast('✅'); render();

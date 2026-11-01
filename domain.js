@@ -183,6 +183,14 @@ const Daira = (() => {
       phone: input.phone || '',
       odco: input.odco || '', ice: input.ice || '',
       email: input.email || '', cin: input.cin || '',
+      // Loi 112-12 compliance (ODCO forms)
+      category: input.category || '',          // صنف 1/2/3
+      purpose: input.purpose || '',            // الغرض الرئيسي
+      province: input.province || '',          // الإقليم
+      share_value: Number(input.share_value) || 100,   // القيمة الاسمية للحصة (MAD)
+      capital_liberated: Number(input.capital_liberated) || 0,  // رأس المال المحرر (MAD)
+      denom_cert_date: input.denom_cert_date || '',    // تاريخ شهادة التسمية (60-day validity)
+      legal_docs: input.legal_docs || {},      // dossier juridique checklist
       status: 'active',
       plan: 'coop_free',
       branding: { primary: input.primaryColor || '#0e6b4a', logo_emoji: input.logoEmoji || '🌿' },

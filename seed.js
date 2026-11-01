@@ -7,13 +7,22 @@
 function dairaSeed() {
   const DB = Daira.DB();
   // migration: backfill credentials for DBs seeded before auth existed
+  // migration 2 (Loi 112-12): compliance fields + member fonction
   try {
     const sa = DB.users['usr_superadmin'];
     if (sa && !sa.username) { sa.username = 'admin'; sa.pin_hash = Daira.hashPin('daira2026'); }
     Object.values(DB.tenants).forEach(tn => {
       const owner = Object.values(DB.users).find(u => u.tenant_id === tn.id && u.is_owner);
       if (owner && !owner.username) { owner.username = tn.code; owner.pin_hash = Daira.hashPin('123456'); }
+      if (tn.category === undefined) tn.category = '';
+      if (tn.purpose === undefined) tn.purpose = '';
+      if (tn.province === undefined) tn.province = '';
+      if (tn.share_value === undefined) tn.share_value = 100;
+      if (tn.capital_liberated === undefined) tn.capital_liberated = 0;
+      if (tn.denom_cert_date === undefined) tn.denom_cert_date = '';
+      if (tn.legal_docs === undefined) tn.legal_docs = {};
     });
+    Object.values(DB.members).forEach(m => { if (m.fonction === undefined) m.fonction = ''; });
     Daira.save();
   } catch (e) {}
   if (DB.tenants && Object.keys(DB.tenants).length) return; // already seeded
@@ -36,6 +45,12 @@ function dairaSeed() {
     primaryColor: '#0e6b4a',
     logoEmoji: '🌿',
     locale: 'fr',
+    category: '2',
+    purpose: 'Production et commercialisation d’huile d’argan et de miel',
+    province: 'Essaouira',
+    share_value: 100,
+    capital_liberated: 12000,
+    denom_cert_date: '2023-02-10',
   });
   Daira.setSession(tenant.id, adminUserId);
   Daira.setCredentials(adminUserId, tenant.code, '123456');  // demo login: T001 / 123456
@@ -53,13 +68,15 @@ function dairaSeed() {
     ['Touria Belkacem', 'تورية بلقاسم', 'Tamanar'], ['Saïda Amrani', 'سعيدة العمراني', 'Imi Ouaddar'],
     ['Loubna Tazi', 'لبنى التازي', 'Aït Milk'], ['Meriem Bennani', 'مريم البناني', 'Tamanar'],
   ];
+  const FONCTIONS = ['president', 'treasurer', 'secretary'];
   const memberIds = memberNames.map(([name, name_ar, village], i) => {
     const id = uid('mbr');
     put('members', { id, code: 'MBR-' + String(i + 1).padStart(3, '0'), name, name_ar, village,
       plot_ref: 'Parcelle ' + village + '-' + (i + 1), status: 'active',
       gender: 'f',
       cin: 'CD' + (100000 + i * 137), phone: '06' + String(10000000 + i * 7919).slice(0, 8),
-      shares: 100, joined_at: '2023-03-15T00:00:00Z' });
+      fonction: FONCTIONS[i] || 'member',
+      shares: 10, joined_at: '2023-03-15T00:00:00Z' });
     return id;
   });
 
