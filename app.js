@@ -261,7 +261,12 @@ function vLogin(V, tab) {
     <p style="text-align:center"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
   const go = () => {
     try {
-      const u = Daira.authenticate($('#lg_u').value, $('#lg_p').value);
+      const uname = $('#lg_u').value.trim();
+      const pin = $('#lg_p').value.trim();
+      if (uname && !Object.values(Daira.DB().users).some(x => x.username === uname)) {
+        toast('⛔ ' + t('login_err_nouser'), true); return;
+      }
+      const u = Daira.authenticate(uname, pin);
       const tn = u.tenant_id !== '*' && Daira.DB().tenants[u.tenant_id];
       if (tn && tn.settings && tn.settings.locale) setLang(tn.settings.locale);
       Daira.setSession(u.tenant_id === '*' ? null : u.tenant_id, u.id);
