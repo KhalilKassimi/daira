@@ -24,7 +24,7 @@ function setLang(l) {
   LANG = l;
   localStorage.setItem('daira_lang', l);
   const meta = LANGS.find(x => x.code === l) || LANGS[0];
-  document.documentElement.lang = l === 'fr' ? 'fr' : 'ar';
+  document.documentElement.lang = l === 'fr' ? 'fr' : (l === 'zgh' ? 'zgh' : 'ar');
   document.documentElement.dir = meta.dir;
   buildLangSel();
   render();
@@ -101,6 +101,45 @@ const WA_NUMBER = '212696672715';
 function getRequests() { try { return JSON.parse(localStorage.getItem(REQ_KEY)) || []; } catch (e) { return []; } }
 function saveRequest(r) { const a = getRequests(); a.unshift(r); try { localStorage.setItem(REQ_KEY, JSON.stringify(a)); } catch (e) {} }
 function updateRequest(id, patch) { const a = getRequests().map(r => r.id === id ? Object.assign({}, r, patch) : r); try { localStorage.setItem(REQ_KEY, JSON.stringify(a)); } catch (e) {} }
+/* ---------------- print engine (client-side, offline) ------------------
+   Renders an official document in a new window with print-optimized CSS
+   and triggers the browser print dialog (Save as PDF supported).        */
+function printDoc(title, bodyHtml) {
+  const css = `<style>
+    *{box-sizing:border-box} body{font-family:Arial,'Noto Sans Arabic',sans-serif;color:#111;margin:0;padding:18px;font-size:13px}
+    .doc{max-width:700px;margin:0 auto}
+    .doc-head{text-align:center;border-bottom:3px solid #0e6b4a;padding-bottom:10px;margin-bottom:14px}
+    .doc-head h1{margin:.2rem 0;font-size:20px;color:#0e6b4a}
+    .doc-head .sub{color:#555;font-size:12px}
+    table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+    th,td{border:1px solid #999;padding:6px 8px;text-align:right}
+    th{background:#eef4f0}
+    .row2{display:flex;justify-content:space-between;gap:10px;margin:8px 0}
+    .sig{margin-top:34px;display:flex;justify-content:space-between}
+    .sig div{border-top:1px solid #333;padding-top:4px;width:44%;text-align:center;font-size:12px;color:#555}
+    .qr{text-align:center;margin:12px 0}
+    .qr svg{width:220px;height:220px}
+    .foot{margin-top:16px;font-size:11px;color:#666;text-align:center;border-top:1px solid #ccc;padding-top:8px}
+    h2{font-size:15px;color:#0e6b4a;margin:14px 0 6px}
+    @media print{ body{padding:0} .no-print{display:none} }
+  </style>`;
+  const w = window.open('', '_blank');
+  w.document.write('<!DOCTYPE html><html dir="' + (LANG === 'fr' ? 'ltr' : 'rtl') + '"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' + css + '</head><body><div class="doc">' + bodyHtml + '</div></body></html>');
+  w.document.close(); w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+function waLink(phone, text) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  const wa = digits.startsWith('0') ? '212' + digits.slice(1) : digits;
+  return 'https://wa.me/' + wa + '?text=' + encodeURIComponent(text);
+}
+
+function tenantHeader() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()];
+  return tn ? { name: tn.name, name_ar: tn.name_ar, odco: tn.odco || '—', region: tn.region || '' } : { name: 'Daira', name_ar: '', odco: '—', region: '' };
+}
+
 function waRequestLink(r) {
   const lines = ['🌿 Daira — Demande d\u2019accès / طلب ولوج',
     '🏢 ' + (r.name || '') + (r.name_ar ? ' — ' + r.name_ar : ''),
@@ -152,12 +191,17 @@ function vLanding(V) {
   V.innerHTML = `
   <div class="hero">
     <div style="font-size:2.4rem;position:relative;z-index:1">🌿</div>
-    <h1>${esc(t('hero_title'))}</h1>
-    <p>${esc(t('hero_sub'))}</p>
+    <div style="position:relative;z-index:1;font-weight:800;font-size:1.05rem;opacity:.95">${esc(t('hero_brand'))}</div>
+    <h1>${esc(t('hero_sub2'))}</h1>
+    <p style="font-size:.95rem"><i>"${esc(t('hero_tag'))}"</i></p>
+    <div style="position:relative;z-index:1;margin:.8rem 0"><span class="badge" style="background:rgba(255,255,255,.2);color:#fff;font-size:.72rem">✅ ${esc(t('badge_trust'))}</span></div>
     <div class="cta-row">
-      <a class="btn light" href="#/onboard" style="text-decoration:none">${esc(t('cta_start'))}</a>
-      <a class="btn outline" href="#/login" style="text-decoration:none">🔑 ${esc(t('login_btn'))}</a>
-      <button class="btn outline" onclick="demoLogin()">👀 ${esc(t('cta_demo'))}</button>
+      <button class="btn light" onclick="demoLogin()">🚀 ${esc(t('cta_explore'))}</button>
+      <a class="btn outline" href="#/login/admin" style="text-decoration:none">🖥️ ${esc(t('cta_admin'))}</a>
+      <a class="btn outline" href="#/onboard" style="text-decoration:none">${esc(t('cta_start'))}</a>
+    </div>
+    <div style="position:relative;z-index:1;margin-top:1rem;display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap">
+      ${LANGS.map(l=>`<button class="btn sm ${l.code===LANG?'light':'outline'}" style="width:auto" onclick="setLang('${l.code}')">${l.label}</button>`).join('')}
     </div>
   </div>
   <div class="grid c2">${feats.map(([a,b,ico]) =>
@@ -166,9 +210,7 @@ function vLanding(V) {
   ${[['how_1t','how_1d'],['how_2t','how_2d'],['how_3t','how_3d']].map(([a,b],i) =>
     `<div class="card step"><span class="n">${i+1}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}
   <div class="card" style="text-align:center"><span class="badge ok">${esc(t('law'))}</span>
-    <p class="muted">${esc(t('made_in'))}</p>
-    <div style="margin:.6rem auto;max-width:220px">${LANGS.map(l=>`<button class="btn sm ghost" style="margin:.2rem" onclick="setLang('${l.code}')">${l.label}</button>`).join('')}</div>
-  </div>`;
+    <p class="muted">${esc(t('made_in'))}</p></div>`;
 }
 
 /* ---------------- login (credentials) ---------------- */
@@ -196,9 +238,10 @@ function vLogin(V, tab) {
       <a href="#/login/admin" class="btn sm ${tab==='admin'?'':'ghost'}" style="flex:1;text-decoration:none">🖥️ ${esc(t('login_admin'))}</a>
     </div>
     ${tab==='admin'?`<p class="muted" style="text-align:center">🔒 ${esc(t('login_hint_admin'))}</p>`:''}
-    <label class="f">${esc(t('login_user'))}<input id="lg_u" autocomplete="username" placeholder="${tab==='admin'?'admin':'T001'}"></label>
+    <label class="f">${esc(t('login_user'))}<input id="lg_u" autocomplete="username" placeholder="${tab==='admin'?'admin':'T001'}" ${tab==='admin'?'value="admin"':''}></label>
     <label class="f">${esc(t('login_pin'))}<input id="lg_p" type="password" autocomplete="current-password"></label>
     <button class="btn" id="lg_go">🔑 ${esc(t('login_go'))}</button>
+    ${tab==='admin'?`<button class="btn ghost" id="lg_fill" style="margin-top:.6rem">⚡ ${esc(t('login_fill'))}</button>`:''}
     <button class="btn ghost" onclick="demoLogin()" style="margin-top:.7rem">👀 ${esc(t('cta_demo'))} <span class="muted">— T001 / 123456</span></button>
     <p style="text-align:center;margin-top:1rem" class="muted">${esc(t('login_noaccess'))} <a href="#/onboard">${esc(t('cta_start'))}</a></p>
     <p style="text-align:center"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
@@ -214,29 +257,60 @@ function vLogin(V, tab) {
   };
   $('#lg_go').onclick = go;
   $('#lg_p').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  const lf = $('#lg_fill');
+  if (lf) lf.onclick = () => { $('#lg_u').value = 'admin'; $('#lg_p').value = 'daira2026'; };
 }
 
-/* ---------------- onboarding wizard ---------------- */
-const OB = { step: 1, data: { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG } };
+/* ---------------- onboarding wizard (validated) ---------------- */
+const OB = { step: 1, data: { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: 'fr', sector: '' } };
 const OB_COLORS = ['#0e6b4a','#8a5a2b','#1f6f9e','#7b2d8b','#b03a2e','#2e4057'];
 const OB_EMOJIS = ['🌿','🫒','🍯','🧶','🌵','🐝','🥜','🫘'];
+const SECTORS = [['Oléicole','الزيتون'],['Argan','أركان'],['PAM','النباتات العطرية'],['Laitier','الحليب'],['Apicole','العسل'],['Artisanat','الصناعة التقليدية']];
+
+const isPhoneMA = v => /^(06|07)\d{8}$/.test(String(v).replace(/[\s-]/g, ''));
+const isEmail = v => /^\S+@\S+\.\S+$/.test(String(v).trim());
+
+function obValidate(step) {
+  const d = OB.data, errs = {};
+  if (step === 1) {
+    if (!d.name || !d.name.trim()) errs.name = t('v_required');
+    if (!d.odco || !d.odco.trim()) errs.odco = t('v_required');
+    if (!d.sector) errs.sector = t('v_required');
+    if (!d.region || !d.region.trim()) errs.region = t('v_required');
+  }
+  if (step === 2) {
+    if (!d.adminName || !d.adminName.trim()) errs.adminName = t('v_required');
+    if (!d.cin || !d.cin.trim()) errs.cin = t('v_required');
+    if (!isPhoneMA(d.adminPhone)) errs.adminPhone = t('v_phone');
+    if (!isEmail(d.email)) errs.email = t('v_email');
+  }
+  return errs;
+}
 
 function vOnboard(V, step) {
   OB.step = step || OB.step;
   const d = OB.data;
-  const dots = [1,2,3,4].map(i=>`<i class="${i<=OB.step?'on':''}"></i>`).join('');
+  const errs = OB['errs' + OB.step] || {};
+  const stepsBar = `<div class="steps-ind">${[1,2,3].map(i =>
+    `<div class="st ${i===OB.step?'on':(i<OB.step?'done':'')}"><div class="dot">${i<OB.step?'✓':i}</div>${esc(t('ob_st'+i))}</div>`).join('')}</div>`;
+  const ferr = k => errs[k] ? `<div class="ferr">⚠️ ${esc(errs[k])}</div>` : '<div class="ferr"></div>';
   let body = '';
   if (OB.step === 1) body = `
-    <label class="f">${esc(t('ob_name'))}<input id="o_name" value="${esc(d.name||'')}" placeholder="Coopérative …"></label>
-    <label class="f">${esc(t('ob_name_ar'))}<input id="o_name_ar" value="${esc(d.name_ar||'')}" placeholder="تعاونية …"></label>
+    <label class="f">${esc(t('ob_name'))}<input id="o_name" value="${esc(d.name||'')}" placeholder="Coopérative …" class="${errs.name?'invalid':''}">${ferr('name')}</label>
+    <label class="f">${esc(t('ob_odco'))}<input id="o_odco" value="${esc(d.odco||'')}" placeholder="ODCO-… / ICE …" class="${errs.odco?'invalid':''}">${ferr('odco')}</label>
+    <label class="f">${esc(t('ob_sector'))}<select id="o_sector" class="${errs.sector?'invalid':''}">
+      <option value="">—</option>${SECTORS.map(([fr,ar])=>`<option value="${fr}" ${d.sector===fr?'selected':''}>${fr} / ${ar}</option>`).join('')}</select>${ferr('sector')}</label>
     <div class="grid c2">
-      <label class="f">${esc(t('ob_region'))}<input id="o_region" value="${esc(d.region||'')}" placeholder="Souss-Massa"></label>
-      <label class="f">${esc(t('ob_sector'))}<input id="o_sector" value="${esc(d.sector||'')}" placeholder="Argan"></label>
-    </div>
-    <label class="f">${esc(t('ob_phone'))}<input id="o_phone" value="${esc(d.phone||'')}" placeholder="06…"></label>`;
+      <label class="f">${esc(t('ob_region'))}<input id="o_region" value="${esc(d.region||'')}" placeholder="Souss-Massa" class="${errs.region?'invalid':''}">${ferr('region')}</label>
+      <label class="f">${esc(t('ob_phone'))}<input id="o_phone" value="${esc(d.phone||'')}"></label>
+    </div>`;
   if (OB.step === 2) body = `
-    <label class="f">${esc(t('ob_admin'))}<input id="o_admin" value="${esc(d.adminName||'')}"></label>
-    <label class="f">${esc(t('ob_admin_phone'))}<input id="o_admin_phone" value="${esc(d.adminPhone||'')}"></label>`;
+    <label class="f">${esc(t('ob_president'))}<input id="o_adminName" value="${esc(d.adminName||'')}" class="${errs.adminName?'invalid':''}">${ferr('adminName')}</label>
+    <div class="grid c2">
+      <label class="f">${esc(t('ob_cin'))}<input id="o_cin" value="${esc(d.cin||'')}" class="${errs.cin?'invalid':''}">${ferr('cin')}</label>
+      <label class="f">${esc(t('ob_admin_phone'))}<input id="o_adminPhone" value="${esc(d.adminPhone||'')}" placeholder="06…" class="${errs.adminPhone?'invalid':''}">${ferr('adminPhone')}</label>
+    </div>
+    <label class="f">${esc(t('ob_email'))}<input id="o_email" type="email" value="${esc(d.email||'')}" class="${errs.email?'invalid':''}">${ferr('email')}</label>`;
   if (OB.step === 3) body = `
     <label class="f">${esc(t('ob_color'))}<div class="swatches">${OB_COLORS.map(c=>`<span class="swatch ${d.primaryColor===c?'on':''}" data-c="${c}" style="background:${c}"></span>`).join('')}</div></label>
     <label class="f">${esc(t('ob_emoji'))}<div class="swatches">${OB_EMOJIS.map(e=>`<span class="swatch ${d.logoEmoji===e?'on':''}" data-e="${e}" style="font-size:1.5rem;display:flex;align-items:center;justify-content:center;background:#f0f4f1">${e}</span>`).join('')}</div></label>
@@ -252,40 +326,47 @@ function vOnboard(V, step) {
   }
 
   V.innerHTML = `<div class="card" style="max-width:520px;margin:1.5rem auto">
-    <h1>${esc(t('ob_t'))}</h1><div class="wizard-dots">${dots}</div>
-    <p class="muted"><b>${esc(t('ob_s'+OB.step))}</b></p>${body}
-    <div class="row" style="margin-top:1rem">
-      ${OB.step>1&&OB.step<4?`<button class="btn ghost" id="o_back" style="flex:1">${esc(t('ob_back'))}</button>`:''}
+    <h1>${esc(t('ob_t'))}</h1>${OB.step<4?stepsBar:''}${body}
+    ${OB.step<4?`<div class="row" style="margin-top:1rem">
+      ${OB.step>1?`<button class="btn ghost" id="o_back" style="flex:1">${esc(t('ob_back'))}</button>`:''}
       ${OB.step<3?`<button class="btn" id="o_next" style="flex:2">${esc(t('ob_next'))}</button>`:''}
       ${OB.step===3?`<button class="btn" id="o_finish" style="flex:2">📩 ${esc(t('ob_finish'))}</button>`:''}
-    </div></div>`;
+    </div>`:''}</div>`;
 
   const grab = () => {
-    ['name','name_ar','region','sector','phone','admin','admin_phone'].forEach(k => {
-      const el = document.getElementById('o_'+k); if (el) d[k==='admin'?'adminName':k==='admin_phone'?'adminPhone':k] = el.value.trim();
+    ['name','odco','region','phone','adminName','cin','adminPhone','email'].forEach(k => {
+      const el = document.getElementById('o_'+k); if (el) d[k] = el.value.trim();
     });
+    const sec = document.getElementById('o_sector'); if (sec) d.sector = sec.value;
     const loc = document.getElementById('o_locale'); if (loc) d.locale = loc.value;
   };
+  const nx = $('#o_next');
+  if (nx) nx.onclick = () => {
+    grab();
+    const e = obValidate(OB.step);
+    if (Object.keys(e).length) { OB['errs'+OB.step] = e; vOnboard(V, OB.step); toast('⚠️ ' + t('v_required'), true); return; }
+    OB['errs'+OB.step] = {};
+    vOnboard(V, OB.step + 1);
+  };
+  const bk = $('#o_back'); if (bk) bk.onclick = () => { grab(); vOnboard(V, OB.step - 1); };
   document.querySelectorAll('.swatch[data-c]').forEach(s => s.onclick = () => { d.primaryColor = s.dataset.c; vOnboard(V, 3); });
   document.querySelectorAll('.swatch[data-e]').forEach(s => s.onclick = () => { d.logoEmoji = s.dataset.e; vOnboard(V, 3); });
-  const nx = $('#o_next'); if (nx) nx.onclick = () => { grab(); vOnboard(V, OB.step + 1); };
-  const bk = $('#o_back'); if (bk) bk.onclick = () => { grab(); vOnboard(V, OB.step - 1); };
   const fn = $('#o_finish');
   if (fn) fn.onclick = () => {
     grab();
-    if (!d.name || !d.adminName) { toast(t('err') + ' — ' + t('ob_name') + ' / ' + t('ob_admin'), true); return; }
-    // moderated onboarding: save an access REQUEST, do NOT provision yet
     const req = { id: 'req_' + Date.now().toString(36), created_at: new Date().toISOString(), status: 'pending',
       name: d.name, name_ar: d.name_ar, region: d.region, sector: d.sector, phone: d.phone,
+      odco: d.odco, email: d.email, cin: d.cin,
       adminName: d.adminName, adminPhone: d.adminPhone,
       primaryColor: d.primaryColor, logoEmoji: d.logoEmoji, locale: d.locale };
     saveRequest(req);
     OB.lastReq = req;
     setLang(d.locale || 'fr');
-    OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG };
+    OB.data = { primaryColor: '#0e6b4a', logoEmoji: '🌿', locale: LANG, sector: '' };
     vOnboard(V, 4);
   };
 }
+
 
 /* ---------------- platform console (super_admin) ---------------- */
 let LAST_CRED = null;
@@ -357,6 +438,36 @@ function vPlatform(V) {
     LAST_CRED = { username: u.username || tn.code, pin, tenantName: tn.name, phone: u.phone || tn.phone };
     render();
   });
+  // ---- data toolbox ----
+  const tb = document.createElement('div');
+  tb.innerHTML = `<h2>💾 ${esc(t('data_t'))}</h2><div class="card">
+    <button class="btn ghost" id="pf_x">📥 ${esc(t('data_export'))}</button>
+    <div class="row" style="margin-top:.6rem"><input type="file" id="pf_i" accept=".json" style="margin:0">
+    <button class="btn sm" id="pf_ig">📤 ${esc(t('data_import'))}</button></div>
+    <button class="btn danger" id="pf_r" style="margin-top:.6rem">🧹 ${esc(t('data_reset'))}</button></div>`;
+  V.appendChild(tb);
+  $('#pf_x').onclick = () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const data = { app: 'daira', exported_at: new Date().toISOString(),
+      db: localStorage.getItem('daira_db_v1'), requests: localStorage.getItem('daira_requests_v1') };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'daira_backup_' + stamp + '.json'; a.click();
+  };
+  $('#pf_ig').onclick = () => {
+    const f = $('#pf_i').files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        if (data.db) localStorage.setItem('daira_db_v1', data.db);
+        if (data.requests) localStorage.setItem('daira_requests_v1', data.requests);
+        location.reload();
+      } catch (e) { toast(t('err'), true); }
+    };
+    r.readAsText(f);
+  };
+  $('#pf_r').onclick = () => { if (confirm('OK?')) { Daira.resetDB(); try { localStorage.removeItem('daira_requests_v1'); } catch (e) {} location.hash = '#/'; location.reload(); } };
 }
 
 /* ---------------- dashboard ---------------- */
@@ -392,6 +503,42 @@ function vDash(V) {
   <h2>${esc(t('d_recent'))}</h2>
   ${recent.map(e=>{ const lot = Daira.DB().finishedLots[e.lot_id];
     return `<div class="card" style="padding:.7rem"><div class="row between"><div><b>${e.change>0?'+':''}${e.change}</b> · ${esc(lot?lot.product_name:'')}<br><span class="muted">${esc(e.reason)} · ${esc(e.ref)} · ${fmtD(e.created_at)}</span></div><span class="badge neutral">${esc(e.actor||'')}</span></div></div>`;}).join('') || `<p class="muted">—</p>`}`;
+}
+
+/* ---------------- print: bon de réception ---------------- */
+let LAST_BATCH = null;
+function ticketHtml(b) {
+  const h = tenantHeader();
+  const m = Daira.DB().members[b.member_id] || {};
+  return `
+  <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
+    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}</div>
+    <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_ticket_t'))} — ${esc(b.batch_code)}</h1></div>
+  <table>
+    <tr><th style="width:45%">Adhérent / المنخرط</th><td>${esc(b.member_name)} (${esc(m.code || '')})</td></tr>
+    <tr><th>Matière</th><td>${esc(b.material_name)}</td></tr>
+    <tr><th>Poids net</th><td><b>${b.qty} ${esc(b.unit)}</b></td></tr>
+    <tr><th>Grade</th><td>${esc(b.grade)}</td></tr>
+    <tr><th>Humidité / Acidité</th><td>${esc(b.quality.moisture || '—')} / ${esc(b.quality.acidity || '—')}</td></tr>
+    <tr><th>Prix unitaire</th><td>${b.unit_price} MAD / ${esc(b.unit)}</td></tr>
+    <tr><th>Montant crédité</th><td><b>${b.total_credit} MAD</b></td></tr>
+    <tr><th>Date & heure</th><td>${new Date(b.received_at).toLocaleString('fr-FR')}</td></tr>
+    <tr><th>Reçu par</th><td>${esc(b.received_by || '')}</td></tr>
+  </table>
+  <div class="sig"><div>Signature du peseur<br><br><br></div><div>Signature / empreinte de l'adhérent<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+}
+function printLastTicket() { if (LAST_BATCH) printDoc(t('pr_ticket_t'), ticketHtml(LAST_BATCH)); }
+function waLastReceipt() {
+  if (!LAST_BATCH) return;
+  const b = LAST_BATCH, h = tenantHeader(), m = Daira.DB().members[b.member_id] || {};
+  const msg = 'السلام عليكم،\nتأكيد استلام محصولكم لدى تعاونية ' + h.name +
+    '\n📅 التاريخ: ' + String(b.received_at).slice(0, 10) +
+    '\n⚖️ الكمية الصافية: ' + b.qty + ' ' + b.unit + ' (' + b.material_name + ')' +
+    '\n💰 المبلغ المقيد في حسابكم: ' + b.total_credit + ' درهم' +
+    '\n🏷️ رقم الحصة: ' + b.batch_code +
+    '\nشكراً لمساهمتكم في نجاح تعاونيتنا!';
+  window.open(waLink(m.phone, msg), '_blank');
 }
 
 /* ---------------- intake ---------------- */
@@ -438,7 +585,12 @@ function vIntake(V) {
         <div style="font-size:2rem;text-align:center">🎉</div>
         <div class="row between"><span>${esc(t('i_batch'))}</span><b>${esc(b.batch_code)}</b></div>
         <div class="row between"><span>${esc(t('i_credit'))}</span><b>${fmtM(b.total_credit)}</b></div>
-        <p class="muted" style="text-align:center">${esc(b.member_name)} · ${b.qty} ${esc(b.unit)} · Grade ${b.grade}</p></div>`;
+        <p class="muted" style="text-align:center">${esc(b.member_name)} · ${b.qty} ${esc(b.unit)} · Grade ${b.grade}</p>
+        <div class="row" style="margin-top:.6rem">
+          <button class="btn sm ghost" onclick="printLastTicket()" style="flex:1">${esc(t('pr_print'))}</button>
+          <button class="btn sm" onclick="waLastReceipt()" style="flex:1;background:#25D366">💬 ${esc(t('wa_receipt'))}</button>
+        </div></div>`;
+      LAST_BATCH = b;
       toast('✅ ' + t('i_saved'));
       $('#in_q').value = ''; upd();
       window.scrollTo(0, document.body.scrollHeight);
@@ -610,6 +762,30 @@ function vCerts(V) {
   };
 }
 
+/* ---------------- print: affiche passeport QR ---------------- */
+function printAffiche(lotId) {
+  let pp;
+  try { pp = Daira.buildPassport(lotId); } catch (e) { toast(t('err'), true); return; }
+  let svg = '';
+  try { const qr = qrcode(0, 'M'); qr.addData(pp.verify_url); qr.make(); svg = qr.createSvgTag({ scalable: true }); } catch (e) {}
+  const html = `
+  <div class="doc-head"><h1>🌿 ${esc(pp.tenant.name)}</h1>
+    <div class="sub">${esc(pp.tenant.name_ar)} · ${esc(pp.tenant.region)}</div>
+    <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_affiche_t'))}</h1></div>
+  <div class="qr">${svg}</div>
+  <p style="text-align:center" class="muted">${esc(t('q_scan'))}</p>
+  <table>
+    <tr><th style="width:45%">Produit</th><td><b>${esc(pp.lot.product)}</b></td></tr>
+    <tr><th>Lot</th><td>${esc(pp.lot.code)}</td></tr>
+    <tr><th>Produit le</th><td>${fmtD(pp.lot.produced_at)}</td></tr>
+    <tr><th>Terroir / région</th><td>${esc(pp.tenant.region)}</td></tr>
+    <tr><th>Contributeurs</th><td>${pp.members.map(esc).join(', ')}</td></tr>
+    <tr><th>Certifications</th><td>${pp.certifications.map(c => esc(c.type)).join(' · ') || '—'}</td></tr>
+  </table>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('pr_affiche_t'), html);
+}
+
 /* ---------------- passport / QR ---------------- */
 function drawQR(elId, text) {
   const el = document.getElementById(elId); if (!el) return;
@@ -629,13 +805,13 @@ function vPassport(V, args) {
   const show = () => {
     if (!lotId) return;
     const pp = Daira.buildPassport(lotId);
-    $('#q_out').innerHTML = passportCard(pp, true);
+    $('#q_out').innerHTML = passportCard(pp, true, lotId);
     drawQR('qrbox', pp.verify_url);
   };
   $('#q_go').onclick = show; show();
 }
 
-function passportCard(pp, interactive) {
+function passportCard(pp, interactive, lotId) {
   return `<div class="passport card" style="padding:0">
     <div class="ph"><div style="font-size:2rem">🌿</div><b>${esc(pp.tenant.name)}</b><br><span>${esc(pp.tenant.name_ar)} · ${esc(pp.tenant.region)}</span></div>
     <div style="padding:1rem">
@@ -648,7 +824,9 @@ function passportCard(pp, interactive) {
         <div class="bar" style="margin:.5rem 0"><i style="width:${Math.min(100,pp.fair_share_pct)}%"></i></div>
         <div class="muted">${pp.fair_share_pct}% ${esc(t('q_of_sale'))}</div></div>
       ${pp.certifications.length?`<h2>📜 ${esc(t('q_certs'))}</h2>${pp.certifications.map(c=>`<div>✅ <b>${esc(c.type)}</b> <span class="muted">${esc(c.ref)}</span></div>`).join('')}`:''}
-      ${interactive?`<button class="btn ghost no-print" style="margin-top:.8rem" onclick="window.print()">🖨️ ${esc(t('q_print'))}</button>
+      ${interactive?`<div class="row no-print" style="margin-top:.8rem">
+      <button class="btn ghost" style="flex:1" onclick="window.print()">🖨️ ${esc(t('q_print'))}</button>
+      <button class="btn ghost" style="flex:1" onclick="printAffiche('${lotId || ''}')">🖨️ ${esc(t('pr_affiche_t'))}</button></div>
       <p class="muted no-print">🔗 <span style="word-break:break-all">${esc(pp.verify_url)}</span><br>${esc(t('q_scan'))}</p>`:''}
     </div></div>`;
 }
@@ -684,28 +862,41 @@ function vPublicPassport(code, lotCode) {
 function vGov(V, args) {
   if (!guard('assembly.manage')) return;
   const tab = args[0] || 'members';
-  const tabs = [['members','g_members','👥'],['assemblies','g_asm','🏛️'],['votes','g_votes','🗳️']];
-  let body = `<div class="row" style="margin-bottom:.8rem">${tabs.map(([k,l,ico])=>`<a href="#/gov/${k}" class="btn sm ${tab===k?'':'ghost'}" style="flex:1;text-decoration:none">${ico} ${esc(t(l))}</a>`).join('')}</div>`;
+  const tabs = [['members','g_members','👥'],['assemblies','g_asm','🏛️'],['votes','g_votes','🗳️'],['odco','odco_t','📊']];
+  let body = `<div class="row" style="margin-bottom:.8rem;flex-wrap:wrap">${tabs.map(([k,l,ico])=>`<a href="#/gov/${k}" class="btn sm ${tab===k?'':'ghost'}" style="flex:1;text-decoration:none;min-width:70px">${ico} ${esc(t(l))}</a>`).join('')}</div>`;
   if (tab === 'members') body += vGovMembers();
   if (tab === 'assemblies') body += vGovAsm();
   if (tab === 'votes') body += vGovVotes();
+  if (tab === 'odco') body += vGovOdco();
   V.innerHTML = `<h1>🏛️ ${esc(t('g_t'))}</h1>${body}`;
   bindGov(V, tab);
 }
+function memberStatusBadge(st) {
+  if (st === 'pending') return `<span class="badge warn">${esc(t('st_pending'))}</span>`;
+  if (st === 'left') return `<span class="badge neutral">${esc(t('st_left'))}</span>`;
+  return `<span class="badge ok">${esc(t('st_active'))}</span>`;
+}
 function vGovMembers() {
   const ms = Daira.scoped('members');
-  return `<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>${esc(t('v_member'))}</th><th>Village</th><th></th></tr>
-    ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td><b>${esc(m.name)}</b><br><span class="muted">${esc(m.name_ar||'')}</span></td><td>${esc(m.village||'')}</td><td><span class="badge ok">${esc(m.status)}</span></td></tr>`).join('')}</table></div>
+  return `<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>${esc(t('v_member'))}</th><th>${esc(t('gm_phone'))}</th><th></th></tr>
+    ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td><b>${esc(m.name)}</b> ${esc(m.firstname||'')}<br><span class="muted">${esc(m.name_ar||'')} · ${esc(m.village||'')} · ${esc(m.shares||0)} ${esc(t('gm_shares')).split(' ')[0]}</span></td><td class="muted">${esc(m.phone||'—')}</td><td>${memberStatusBadge(m.status)}</td></tr>`).join('')}</table></div>
   <div class="card"><h2 style="margin-top:0">➕ ${esc(t('g_add_member'))}</h2>
-    <div class="grid c2"><label class="f">Nom<input id="gm_n"></label><label class="f">الاسم<input id="gm_na"></label></div>
-    <div class="grid c2"><label class="f">Village<input id="gm_v"></label><label class="f">Parcelle<input id="gm_p"></label></div>
+    <div class="grid c2"><label class="f">Nom<input id="gm_n"></label>
+    <label class="f">${esc(t('gm_firstname'))}<input id="gm_fn" placeholder="${esc(t('ph_firstname'))}"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('gm_cin'))}<input id="gm_cin"></label>
+    <label class="f">${esc(t('gm_phone'))}<input id="gm_ph" placeholder="06…"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('gm_gender'))}<select id="gm_g"><option value="f">${esc(t('gender_f'))}</option><option value="m">${esc(t('gender_m'))}</option></select></label>
+    <label class="f">${esc(t('gm_shares'))}<input id="gm_sh" type="number" value="100" min="0"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('gm_joindate'))}<input id="gm_jd" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
+    <label class="f">Status<select id="gm_st"><option value="active">${esc(t('st_active'))}</option><option value="pending">${esc(t('st_pending'))}</option><option value="left">${esc(t('st_left'))}</option></select></label></div>
     <button class="btn" id="gm_go">${esc(t('save'))}</button></div>`;
 }
 function vGovAsm() {
   const as = [...Daira.scoped('assemblies')].reverse();
   return as.map(a=>`<div class="card"><div class="row between"><b>${esc(a.title)}</b><span class="badge ${a.status==='signed'?'ok':'warn'}">${esc(a.status)}</span></div>
     <div class="muted">${fmtD(a.held_at)} · PV ${esc(a.pv_ref||'—')} · 👥 ${a.attendees.length} ${esc(t('g_attendees'))}</div>
-    <div><b>${esc(t('g_decisions'))}:</b><ul>${a.decisions.map(d=>`<li>${esc(d)}</li>`).join('')}</ul></div></div>`).join('') +
+    <div><b>${esc(t('g_decisions'))}:</b><ul>${a.decisions.map(d=>`<li>${esc(d)}</li>`).join('')}</ul></div>
+    <button class="btn sm ghost" onclick="printPV('${a.id}')" style="margin-top:.4rem">${esc(t('pr_print'))} — ${esc(t('pr_pv_t'))}</button></div>`).join('') +
   `<div class="card"><h2 style="margin-top:0">➕ ${esc(t('g_new_asm'))}</h2>
     <label class="f">Titre<input id="ga_t"></label>
     <label class="f">Date<input id="ga_d" type="date"></label>
@@ -727,13 +918,92 @@ function vGovVotes() {
     <label class="f">Question (FR)<input id="gv_q"></label><label class="f">السؤال (AR)<input id="gv_qa"></label>
     <button class="btn" id="gv_go">${esc(t('g_open'))} 🗳️</button></div>`;
 }
+/* ---------------- print: PV d'AG ---------------- */
+function printPV(asmId) {
+  const a = Daira.get('assemblies', asmId); if (!a) return;
+  const h = tenantHeader();
+  const ms = Daira.scoped('members');
+  const pct = ms.length ? Math.round(a.attendees.length / ms.length * 100) : 0;
+  const html = `
+  <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
+    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}</div>
+    <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_pv_t'))}</h1>
+    <div class="sub">${esc(a.title)} — ${esc(a.pv_ref || '')}</div></div>
+  <table>
+    <tr><th style="width:45%">Date / heure / lieu</th><td>${new Date(a.held_at).toLocaleString('fr-FR')} — ${esc(h.region)}</td></tr>
+    <tr><th>Quorum constaté</th><td>${a.attendees.length} présents / ${ms.length} membres (${pct}%)</td></tr>
+  </table>
+  <h2>Ordre du jour & résolutions</h2>
+  <ul>${a.decisions.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+  <h2>${esc(t('g_attendees'))} (${a.attendees.length}) — émargement</h2>
+  <table><tr><th style="width:60%">Nom</th><th>Signature</th></tr>
+  ${a.attendees.map(n => `<tr><td>${esc(n)}</td><td></td></tr>`).join('')}</table>
+  <div class="sig"><div>Le président<br><br><br></div><div>Le secrétaire<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('pr_pv_t'), html);
+}
+
+/* ---------------- ODCO compliance dashboard ---------------- */
+function vGovOdco() {
+  const ms = Daira.scoped('members');
+  const nM = ms.filter(m => m.gender === 'm').length, nF = ms.filter(m => m.gender !== 'm').length;
+  const asms = [...Daira.scoped('assemblies')].reverse();
+  const last = asms[0];
+  const particip = last && ms.length ? Math.round(last.attendees.length / ms.length * 100) : 0;
+  const y = new Date().getFullYear();
+  const vol = ms.length ? Daira.scoped('rawBatches').filter(b => String(b.received_at).startsWith(y)).reduce((s, b) => s + b.qty, 0) : 0;
+  const volPrev = Daira.scoped('rawBatches').filter(b => String(b.received_at).startsWith(y - 1)).reduce((s, b) => s + b.qty, 0);
+  const dVol = volPrev ? Math.round((vol - volPrev) / volPrev * 100) : null;
+  const lastDiv = [...Daira.scoped('dividendCampaigns')].reverse()[0];
+  const reserve = lastDiv ? Daira.round2(lastDiv.surplus * 0.10) : 0;
+  const kpi = (l, v, sub) => `<div class="kpi"><div class="n">${v}</div><div class="l">${l}</div>${sub ? `<div class="muted">${sub}</div>` : ''}</div>`;
+  return `
+  <div class="grid c2" style="grid-template-columns:repeat(2,1fr)">
+    ${kpi(esc(t('odco_members')), ms.length, `👨 ${nM} · 👩 ${nF}`)}
+    ${kpi(esc(t('odco_particip')), particip + '%', last ? esc(last.title) : '—')}
+    ${kpi(esc(t('odco_volume')), Math.round(vol) + ' kg', dVol === null ? y : (dVol >= 0 ? '+' : '') + dVol + '% vs ' + (y - 1))}
+    ${kpi(esc(t('odco_reserve')), fmtM(reserve), lastDiv ? esc(t('v_season')) + ' ' + esc(lastDiv.season) : '—')}
+  </div>
+  <button class="btn" onclick="printOdco()" style="margin-top:.8rem">🖨️ ${esc(t('odco_export'))}</button>`;
+}
+
+function printOdco() {
+  const h = tenantHeader();
+  const ms = Daira.scoped('members');
+  const y = new Date().getFullYear();
+  const vol = Daira.scoped('rawBatches').filter(b => String(b.received_at).startsWith(y)).reduce((s, b) => s + b.qty, 0);
+  const sales = Daira.scoped('sales').filter(s => String(s.created_at).startsWith(y)).reduce((s, x) => s + x.total, 0);
+  const lastDiv = [...Daira.scoped('dividendCampaigns')].reverse()[0];
+  const html = `
+  <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
+    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}</div>
+    <h1 style="font-size:17px;margin-top:8px">${esc(t('odco_t'))} — ${esc(t('odco_export'))} ${y}</h1></div>
+  <table>
+    <tr><th style="width:55%">${esc(t('odco_members'))}</th><td>${ms.length} (👨 ${ms.filter(m => m.gender === 'm').length} · 👩 ${ms.filter(m => m.gender !== 'm').length})</td></tr>
+    <tr><th>${esc(t('odco_volume'))} ${y}</th><td>${Math.round(vol)} kg</td></tr>
+    <tr><th>Ventes ${y}</th><td>${fmtM(sales)}</td></tr>
+    <tr><th>${esc(t('odco_reserve'))}</th><td>${lastDiv ? fmtM(Daira.round2(lastDiv.surplus * 0.10)) : '—'}</td></tr>
+    <tr><th>Assemblées tenues</th><td>${Daira.scoped('assemblies').length}</td></tr>
+    <tr><th>Certifications valides</th><td>${Daira.scoped('certifications').filter(c => c.status === 'valid').length}</td></tr>
+  </table>
+  <h2>Registre des membres</h2>
+  <table><tr><th>#</th><th>Nom</th><th>CIN</th><th>Parts</th><th>Statut</th></tr>
+  ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${esc(m.shares || 0)}</td><td>${esc(m.status)}</td></tr>`).join('')}</table>
+  <div class="sig"><div>Le président<br><br><br></div><div>Cachet de la coopérative<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('odco_export'), html);
+}
+
 function bindGov(V, tab) {
   if (tab === 'members') $('#gm_go').onclick = () => {
     try { Daira.requirePerm('member.create');
       const ms = Daira.scoped('members');
       Daira.put('members', { id: 'mbr_' + Date.now().toString(36), code: 'MBR-' + String(ms.length+1).padStart(3,'0'),
-        name: $('#gm_n').value.trim(), name_ar: $('#gm_na').value.trim(), village: $('#gm_v').value.trim(),
-        plot_ref: $('#gm_p').value.trim(), status: 'active', joined_at: new Date().toISOString() });
+        name: $('#gm_n').value.trim(), firstname: $('#gm_fn').value.trim(),
+        cin: $('#gm_cin').value.trim(), phone: $('#gm_ph').value.trim(),
+        gender: $('#gm_g').value, shares: Number($('#gm_sh').value) || 0,
+        joined_at: new Date($('#gm_jd').value || Date.now()).toISOString(),
+        status: $('#gm_st').value });
       toast('✅'); render();
     } catch (e) { toast(t('err') + ': ' + e.message, true); }
   };
@@ -764,6 +1034,45 @@ function bindGov(V, tab) {
   }
 }
 
+/* ---------------- print: fiche individuelle de ristournes ---------------- */
+function ficheHtml(c, a) {
+  const h = tenantHeader();
+  const m = Daira.DB().members[a.member_id] || {};
+  const batches = Daira.scoped('rawBatches').filter(b => b.member_id === a.member_id && String(b.received_at).startsWith(c.season));
+  const totalQty = Daira.round2(batches.reduce((s, b) => s + b.qty, 0));
+  const legal = Daira.round2(a.amount * 0.10);
+  const net = Daira.round2(a.amount - legal);
+  return `
+  <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
+    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)}</div>
+    <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_fiche_t'))} — ${esc(c.season)}</h1>
+    ${c.status !== 'confirmed' ? '<div class="sub">⚠️ PROVISOIRE / مؤقت</div>' : ''}</div>
+  <table>
+    <tr><th style="width:55%">Adhérent</th><td>${esc(a.member_name)} (${esc(m.code || '')}) — CIN ${esc(m.cin || '—')}</td></tr>
+    <tr><th>Total apports livrés</th><td><b>${totalQty} kg</b></td></tr>
+    <tr><th>Quote-part activité</th><td>${a.share_pct}%</td></tr>
+    <tr><th>Ristourne brute</th><td><b>${fmtM(a.amount)}</b></td></tr>
+    <tr><th>Réserve légale (10%)</th><td>− ${fmtM(legal)}</td></tr>
+    <tr><th>Net à payer</th><td><b>${fmtM(net)}</b></td></tr>
+    <tr><th>Date de versement</th><td>${c.confirmed_at ? fmtD(c.confirmed_at) : '—'}</td></tr>
+  </table>
+  <div class="sig"><div>Le trésorier<br><br><br></div><div>L'adhérent (reçu)<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+}
+function printFiche(cid, mid) {
+  const c = Daira.get('dividendCampaigns', cid); if (!c) return;
+  const a = c.allocations.find(x => x.member_id === mid); if (!a) return;
+  printDoc(t('pr_fiche_t'), ficheHtml(c, a));
+}
+function waDividend(cid, mid) {
+  const c = Daira.get('dividendCampaigns', cid); if (!c) return;
+  const a = c.allocations.find(x => x.member_id === mid); if (!a) return;
+  const m = Daira.DB().members[mid] || {}, h = tenantHeader();
+  const msg = 'السلام عليكم،\nتنهي إدارة تعاونية ' + h.name + ' إلى علمكم أنه تم حصر الفوائض السنوية (' + c.season +
+    ')، وبلغت قيمة مردوداتكم الصافية: ' + a.amount + ' درهم.\nيرجى الحضور لمقر التعاونية لاستلام مستحقاتكم مصحوبين ببطاقة التعريف الوطنية.';
+  window.open(waLink(m.phone, msg), '_blank');
+}
+
 /* ---------------- dividends ---------------- */
 function vDividends(V) {
   if (!guard('dividend.run')) return;
@@ -778,16 +1087,20 @@ function vDividends(V) {
   <div id="dv_out"></div>
   ${camps.map(c=>`<div class="card"><div class="row between"><b>${esc(t('v_season'))} ${esc(c.season)}</b><span class="badge ${c.status==='confirmed'?'ok':'warn'}">${esc(c.status)}</span></div>
     <div class="muted">${esc(t('v_surplus'))}: ${fmtM(c.surplus)}</div>
-    <table><tr><th>${esc(t('v_member'))}</th><th>${esc(t('v_points'))}</th><th>${esc(t('v_share'))}</th><th>${esc(t('v_amount'))}</th></tr>
-    ${c.allocations.slice(0,6).map(a=>`<tr><td>${esc(a.member_name)}</td><td>${a.points}</td><td>${a.share_pct}%</td><td><b>${fmtM(a.amount)}</b></td></tr>`).join('')}
-    ${c.allocations.length>6?`<tr><td colspan="4" class="muted">… +${c.allocations.length-6}</td></tr>`:''}</table></div>`).join('')}`;
+    <div style="overflow-x:auto"><table><tr><th>${esc(t('v_member'))}</th><th>${esc(t('v_points'))}</th><th>${esc(t('v_share'))}</th><th>${esc(t('v_amount'))}</th><th></th></tr>
+    ${c.allocations.slice(0,6).map(a=>`<tr><td>${esc(a.member_name)}</td><td>${a.points}</td><td>${a.share_pct}%</td><td><b>${fmtM(a.amount)}</b></td>
+    <td style="white-space:nowrap"><button class="btn sm ghost" onclick="printFiche('${c.id}','${a.member_id}')">🖨️</button>
+    <button class="btn sm" style="background:#25D366" onclick="waDividend('${c.id}','${a.member_id}')">💬</button></td></tr>`).join('')}
+    ${c.allocations.length>6?`<tr><td colspan="5" class="muted">… +${c.allocations.length-6}</td></tr>`:''}</table></div></div>`).join('')}`;
 
   $('#dv_go').onclick = () => {
     try {
       const c = Daira.allocateDividends({ season: $('#dv_s').value.trim(), surplus: $('#dv_m').value });
       $('#dv_out').innerHTML = `<div class="card" style="border:2px solid var(--ok)"><h2 style="margin-top:0">🧮 ${esc(t('v_season'))} ${esc(c.season)} — ${fmtM(c.surplus)}</h2>
-      <table><tr><th>${esc(t('v_member'))}</th><th>${esc(t('v_points'))}</th><th>${esc(t('v_share'))}</th><th>${esc(t('v_amount'))}</th></tr>
-      ${c.allocations.map(a=>`<tr><td>${esc(a.member_name)}</td><td>${a.points}</td><td>${a.share_pct}%</td><td><b>${fmtM(a.amount)}</b></td></tr>`).join('')}</table>
+      <div style="overflow-x:auto"><table><tr><th>${esc(t('v_member'))}</th><th>${esc(t('v_points'))}</th><th>${esc(t('v_share'))}</th><th>${esc(t('v_amount'))}</th><th></th></tr>
+      ${c.allocations.map(a=>`<tr><td>${esc(a.member_name)}</td><td>${a.points}</td><td>${a.share_pct}%</td><td><b>${fmtM(a.amount)}</b></td>
+      <td style="white-space:nowrap"><button class="btn sm ghost" onclick="printFiche('${c.id}','${a.member_id}')">🖨️</button>
+      <button class="btn sm" style="background:#25D366" onclick="waDividend('${c.id}','${a.member_id}')">💬</button></td></tr>`).join('')}</table></div>
       <button class="btn" id="dv_cf" style="margin-top:.8rem">✅ ${esc(t('v_confirm'))}</button></div>`;
       $('#dv_cf').onclick = () => { try { Daira.confirmDividends(c.id); toast('✅ ' + t('v_confirmed')); render(); } catch (e) { toast(e.message, true); } };
       window.scrollTo(0, document.body.scrollHeight);
@@ -890,7 +1203,7 @@ function vSettings(V) {
   const s = Daira.DB().session;
   if (s.tenantId) { const tn = Daira.DB().tenants[s.tenantId]; if (tn && tn.settings && tn.settings.locale) LANG = tn.settings.locale; }
   const meta = LANGS.find(x => x.code === LANG) || LANGS[0];
-  document.documentElement.lang = LANG === 'fr' ? 'fr' : 'ar';
+  document.documentElement.lang = LANG === 'fr' ? 'fr' : (LANG === 'zgh' ? 'zgh' : 'ar');
   document.documentElement.dir = meta.dir;
   buildLangSel();
   if (!location.hash) location.hash = '#/';

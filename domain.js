@@ -181,6 +181,8 @@ const Daira = (() => {
       region: input.region || '',
       sector: input.sector || '',
       phone: input.phone || '',
+      odco: input.odco || '', ice: input.ice || '',
+      email: input.email || '', cin: input.cin || '',
       status: 'active',
       plan: 'coop_free',
       branding: { primary: input.primaryColor || '#0e6b4a', logo_emoji: input.logoEmoji || '🌿' },

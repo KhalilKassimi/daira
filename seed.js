@@ -57,7 +57,9 @@ function dairaSeed() {
     const id = uid('mbr');
     put('members', { id, code: 'MBR-' + String(i + 1).padStart(3, '0'), name, name_ar, village,
       plot_ref: 'Parcelle ' + village + '-' + (i + 1), status: 'active',
-      joined_at: '2023-03-15T00:00:00Z' });
+      gender: 'f',
+      cin: 'CD' + (100000 + i * 137), phone: '06' + String(10000000 + i * 7919).slice(0, 8),
+      shares: 100, joined_at: '2023-03-15T00:00:00Z' });
     return id;
   });
 
