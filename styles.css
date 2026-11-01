@@ -145,4 +145,15 @@ code{background:#edf2ee;padding:.1rem .4rem;border-radius:6px;font-size:.85em}
 .doc-ent{border:1px solid var(--line);border-radius:12px;padding:.8rem;margin-bottom:.6rem}
 .doc-ent b{color:var(--brand-dark)}
 .doc-ent .pk{color:#8e44ad}.doc-ent .fk{color:#2471a3}
+/* ===== Arabic / RTL (Cairo) ===== */
+html[dir="rtl"], html[dir="rtl"] body, [lang="ar"] {
+  font-family: 'Cairo', system-ui, -apple-system, 'Noto Sans Arabic', sans-serif !important;
+  direction: rtl;
+  text-align: right;
+}
+html[dir="rtl"] table { text-align: right; }
+html[dir="rtl"] input, html[dir="rtl"] select, html[dir="rtl"] textarea { text-align: right; }
+html[dir="rtl"] input[type="number"], html[dir="rtl"] input[type="date"] { text-align: left; direction: ltr; }
+html[dir="rtl"] .row.between { direction: rtl; }
+
 @media print{ #topbar,#sidenav,#foot,.no-print{display:none!important} #view{max-width:100%} }

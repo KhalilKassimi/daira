@@ -24,7 +24,7 @@ function setLang(l) {
   LANG = l;
   localStorage.setItem('daira_lang', l);
   const meta = LANGS.find(x => x.code === l) || LANGS[0];
-  document.documentElement.lang = l === 'fr' ? 'fr' : (l === 'zgh' ? 'zgh' : 'ar');
+  document.documentElement.lang = l === 'ar' ? 'ar' : 'fr';
   document.documentElement.dir = meta.dir;
   buildLangSel();
   render();

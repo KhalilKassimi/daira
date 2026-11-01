@@ -308,5 +308,4 @@ darija: {
 const LANGS = [
   { code: 'fr', label: 'Français', dir: 'ltr' },
   { code: 'ar', label: 'العربية', dir: 'rtl' },
-  { code: 'darija', label: 'الدارجة', dir: 'rtl' },
 ];
