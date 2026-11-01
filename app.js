@@ -196,7 +196,7 @@ function vLanding(V) {
     <p style="font-size:.95rem"><i>"${esc(t('hero_tag'))}"</i></p>
     <div style="position:relative;z-index:1;margin:.8rem 0"><span class="badge" style="background:rgba(255,255,255,.2);color:#fff;font-size:.72rem">✅ ${esc(t('badge_trust'))}</span></div>
     <div class="cta-row">
-      <button class="btn light" onclick="demoLogin()">🚀 ${esc(t('cta_explore'))}</button>
+      <button class="btn light" onclick="demoLogin()">${esc(t('cta_explore'))}</button>
       <a class="btn outline" href="#/login/admin" style="text-decoration:none">🖥️ ${esc(t('cta_admin'))}</a>
       <a class="btn outline" href="#/onboard" style="text-decoration:none">${esc(t('cta_start'))}</a>
     </div>
@@ -825,8 +825,8 @@ function passportCard(pp, interactive, lotId) {
         <div class="muted">${pp.fair_share_pct}% ${esc(t('q_of_sale'))}</div></div>
       ${pp.certifications.length?`<h2>📜 ${esc(t('q_certs'))}</h2>${pp.certifications.map(c=>`<div>✅ <b>${esc(c.type)}</b> <span class="muted">${esc(c.ref)}</span></div>`).join('')}`:''}
       ${interactive?`<div class="row no-print" style="margin-top:.8rem">
-      <button class="btn ghost" style="flex:1" onclick="window.print()">🖨️ ${esc(t('q_print'))}</button>
-      <button class="btn ghost" style="flex:1" onclick="printAffiche('${lotId || ''}')">🖨️ ${esc(t('pr_affiche_t'))}</button></div>
+      <button class="btn ghost" style="flex:1" onclick="window.print()">${esc(t('q_print'))}</button>
+      <button class="btn ghost" style="flex:1" onclick="printAffiche('${lotId || ''}')">${esc(t('pr_affiche_t'))}</button></div>
       <p class="muted no-print">🔗 <span style="word-break:break-all">${esc(pp.verify_url)}</span><br>${esc(t('q_scan'))}</p>`:''}
     </div></div>`;
 }
@@ -881,14 +881,14 @@ function vGovMembers() {
   return `<div class="card" style="overflow-x:auto"><table><tr><th>#</th><th>${esc(t('v_member'))}</th><th>${esc(t('gm_phone'))}</th><th></th></tr>
     ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td><b>${esc(m.name)}</b> ${esc(m.firstname||'')}<br><span class="muted">${esc(m.name_ar||'')} · ${esc(m.village||'')} · ${esc(m.shares||0)} ${esc(t('gm_shares')).split(' ')[0]}</span></td><td class="muted">${esc(m.phone||'—')}</td><td>${memberStatusBadge(m.status)}</td></tr>`).join('')}</table></div>
   <div class="card"><h2 style="margin-top:0">➕ ${esc(t('g_add_member'))}</h2>
-    <div class="grid c2"><label class="f">Nom<input id="gm_n"></label>
+    <div class="grid c2"><label class="f">${esc(t('gm_lastname'))}<input id="gm_n"></label>
     <label class="f">${esc(t('gm_firstname'))}<input id="gm_fn" placeholder="${esc(t('ph_firstname'))}"></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_cin'))}<input id="gm_cin"></label>
     <label class="f">${esc(t('gm_phone'))}<input id="gm_ph" placeholder="06…"></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_gender'))}<select id="gm_g"><option value="f">${esc(t('gender_f'))}</option><option value="m">${esc(t('gender_m'))}</option></select></label>
     <label class="f">${esc(t('gm_shares'))}<input id="gm_sh" type="number" value="100" min="0"></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_joindate'))}<input id="gm_jd" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
-    <label class="f">Status<select id="gm_st"><option value="active">${esc(t('st_active'))}</option><option value="pending">${esc(t('st_pending'))}</option><option value="left">${esc(t('st_left'))}</option></select></label></div>
+    <label class="f">${esc(t('gm_status'))}<select id="gm_st"><option value="active">${esc(t('st_active'))}</option><option value="pending">${esc(t('st_pending'))}</option><option value="left">${esc(t('st_left'))}</option></select></label></div>
     <button class="btn" id="gm_go">${esc(t('save'))}</button></div>`;
 }
 function vGovAsm() {
@@ -896,10 +896,10 @@ function vGovAsm() {
   return as.map(a=>`<div class="card"><div class="row between"><b>${esc(a.title)}</b><span class="badge ${a.status==='signed'?'ok':'warn'}">${esc(a.status)}</span></div>
     <div class="muted">${fmtD(a.held_at)} · PV ${esc(a.pv_ref||'—')} · 👥 ${a.attendees.length} ${esc(t('g_attendees'))}</div>
     <div><b>${esc(t('g_decisions'))}:</b><ul>${a.decisions.map(d=>`<li>${esc(d)}</li>`).join('')}</ul></div>
-    <button class="btn sm ghost" onclick="printPV('${a.id}')" style="margin-top:.4rem">${esc(t('pr_print'))} — ${esc(t('pr_pv_t'))}</button></div>`).join('') +
+    <button class="btn sm ghost" onclick="printPV('${a.id}')" style="margin-top:.4rem">${esc(t('pv_btn'))}</button></div>`).join('') +
   `<div class="card"><h2 style="margin-top:0">➕ ${esc(t('g_new_asm'))}</h2>
-    <label class="f">Titre<input id="ga_t"></label>
-    <label class="f">Date<input id="ga_d" type="date"></label>
+    <label class="f">${esc(t('ga_title'))}<input id="ga_t"></label>
+    <label class="f">${esc(t('ga_date'))}<input id="ga_d" type="date"></label>
     <label class="f">${esc(t('g_attendees'))} (1/ligne)<textarea id="ga_a" rows="3"></textarea></label>
     <label class="f">${esc(t('g_decisions'))} (1/ligne)<textarea id="ga_dc" rows="3"></textarea></label>
     <button class="btn" id="ga_go">${esc(t('save'))}</button></div>`;
@@ -936,7 +936,7 @@ function printPV(asmId) {
   <h2>Ordre du jour & résolutions</h2>
   <ul>${a.decisions.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
   <h2>${esc(t('g_attendees'))} (${a.attendees.length}) — émargement</h2>
-  <table><tr><th style="width:60%">Nom</th><th>Signature</th></tr>
+  <table><tr><th style="width:60%">${esc(t('gm_lastname'))}</th><th>${esc(t('pr_sign'))}</th></tr>
   ${a.attendees.map(n => `<tr><td>${esc(n)}</td><td></td></tr>`).join('')}</table>
   <div class="sig"><div>Le président<br><br><br></div><div>Le secrétaire<br><br><br></div></div>
   <div class="foot">${esc(t('made_in'))} · Daira</div>`;
@@ -964,7 +964,7 @@ function vGovOdco() {
     ${kpi(esc(t('odco_volume')), Math.round(vol) + ' kg', dVol === null ? y : (dVol >= 0 ? '+' : '') + dVol + '% vs ' + (y - 1))}
     ${kpi(esc(t('odco_reserve')), fmtM(reserve), lastDiv ? esc(t('v_season')) + ' ' + esc(lastDiv.season) : '—')}
   </div>
-  <button class="btn" onclick="printOdco()" style="margin-top:.8rem">🖨️ ${esc(t('odco_export'))}</button>`;
+  <button class="btn" onclick="printOdco()" style="margin-top:.8rem">${esc(t('odco_export'))}</button>`;
 }
 
 function printOdco() {
@@ -987,7 +987,7 @@ function printOdco() {
     <tr><th>Certifications valides</th><td>${Daira.scoped('certifications').filter(c => c.status === 'valid').length}</td></tr>
   </table>
   <h2>Registre des membres</h2>
-  <table><tr><th>#</th><th>Nom</th><th>CIN</th><th>Parts</th><th>Statut</th></tr>
+  <table><tr><th>#</th><th>${esc(t('gm_lastname'))}</th><th>${esc(t('gm_cin'))}</th><th>${esc(t('pr_parts'))}</th><th>${esc(t('gm_status'))}</th></tr>
   ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${esc(m.shares || 0)}</td><td>${esc(m.status)}</td></tr>`).join('')}</table>
   <div class="sig"><div>Le président<br><br><br></div><div>Cachet de la coopérative<br><br><br></div></div>
   <div class="foot">${esc(t('made_in'))} · Daira</div>`;
