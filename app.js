@@ -261,7 +261,7 @@ function demoLogin() {
     const u = Object.values(DB.users).find(x => x.tenant_id === tn.id && x.is_owner)
            || Object.values(DB.users).find(x => x.tenant_id === tn.id);
     if (!u) { toast(t('err'), true); return; }
-    if (tn.settings && tn.settings.locale) setLang(tn.settings.locale);
+    if (!localStorage.getItem('daira_lang') && tn.settings && tn.settings.locale) setLang(tn.settings.locale);
     Daira.setSession(tn.id, u.id);
     location.hash = '#/dash';
   } catch (e) { toast(t('err'), true); }
@@ -293,7 +293,7 @@ function vLogin(V, tab) {
       }
       const u = Daira.authenticate(uname, pin);
       const tn = u.tenant_id !== '*' && Daira.DB().tenants[u.tenant_id];
-      if (tn && tn.settings && tn.settings.locale) setLang(tn.settings.locale);
+      if (!localStorage.getItem('daira_lang') && tn && tn.settings && tn.settings.locale) setLang(tn.settings.locale);
       Daira.setSession(u.tenant_id === '*' ? null : u.tenant_id, u.id);
       if (u.role === 'super_admin') { Daira.DB().session.tenantId = null; Daira.save(); location.hash = '#/platform'; }
       else location.hash = '#/dash';
