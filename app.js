@@ -32,6 +32,7 @@ function setLang(l) {
 
 function buildLangSel() {
   const sel = $('#langSel');
+  sel.title = t('lang_toggle');
   sel.innerHTML = LANGS.map(l => `<option value="${l.code}" ${l.code===LANG?'selected':''}>${l.label}</option>`).join('');
   sel.onchange = e => setLang(e.target.value);
 }
@@ -173,7 +174,7 @@ function waLink(phone, text) {
 
 function tenantHeader() {
   const tn = Daira.DB().tenants[Daira.activeTenantId()];
-  return tn ? { name: tn.name, name_ar: tn.name_ar, odco: tn.odco || '—', region: tn.region || '' } : { name: 'Daira', name_ar: '', odco: '—', region: '' };
+  return tn ? { name: tn.name, name_ar: tn.name_ar, odco: tn.odco || '—', region: tn.region || '' } : { name: t('coop_default_name'), name_ar: t('coop_default_name'), odco: '—', region: '' };
 }
 
 function waRequestLink(r) {
@@ -234,9 +235,9 @@ function vLanding(V) {
     <p style="font-size:.95rem"><i>"${esc(t('hero_tag'))}"</i></p>
     <div style="position:relative;z-index:1;margin:.8rem 0"><span class="badge" style="background:rgba(255,255,255,.2);color:#fff;font-size:.72rem">✅ ${esc(t('badge_trust'))}</span></div>
     <div class="cta-row">
-      <button class="btn light" onclick="demoLogin()">${esc(t('cta_explore'))}</button>
-      <a class="btn outline" href="#/login/admin" style="text-decoration:none">🖥️ ${esc(t('cta_admin'))}</a>
-      <a class="btn outline" href="#/onboard" style="text-decoration:none">${esc(t('cta_start'))}</a>
+      <button class="btn light" onclick="demoLogin()">🚀 ${esc(t('explore_demo'))}</button>
+      <a class="btn outline" href="#/login/admin" style="text-decoration:none">🖥️ ${esc(t('admin_portal'))}</a>
+      <a class="btn outline" href="#/onboard" style="text-decoration:none">${esc(t('request_access'))}</a>
     </div>
     <div style="position:relative;z-index:1;margin-top:1rem;display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap">
       ${LANGS.map(l=>`<button class="btn sm ${l.code===LANG?'light':'outline'}" style="width:auto" onclick="setLang('${l.code}')">${l.label}</button>`).join('')}
@@ -279,9 +280,9 @@ function vLogin(V, tab) {
     <label class="f">${esc(t('login_user'))}<input id="lg_u" autocomplete="username" placeholder="${tab==='admin'?'admin':'T001'}" ${tab==='admin'?'value="admin"':''}></label>
     <label class="f">${esc(t('login_pin'))}<input id="lg_p" type="password" autocomplete="current-password"></label>
     <button class="btn" id="lg_go">🔑 ${esc(t('login_go'))}</button>
-    ${tab==='admin'?`<button class="btn ghost" id="lg_fill" style="margin-top:.6rem">⚡ ${esc(t('login_fill'))}</button>`:''}
-    <button class="btn ghost" onclick="demoLogin()" style="margin-top:.7rem">👀 ${esc(t('cta_demo'))} <span class="muted">— T001 / 123456</span></button>
-    <p style="text-align:center;margin-top:1rem" class="muted">${esc(t('login_noaccess'))} <a href="#/onboard">${esc(t('cta_start'))}</a></p>
+    ${tab==='admin'?`<button class="btn ghost" id="lg_fill" style="margin-top:.6rem">⚡ ${esc(t('quick_login'))}</button>`:''}
+    <button class="btn ghost" onclick="demoLogin()" style="margin-top:.7rem">👀 ${esc(t('view_demo'))} <span class="muted">— T001 / 123456</span></button>
+    <p style="text-align:center;margin-top:1rem" class="muted">${esc(t('login_noaccess'))} <a href="#/onboard">${esc(t('request_access'))}</a></p>
     <p style="text-align:center"><a href="#/">${esc(t('nav_home'))}</a></p></div>`;
   const go = () => {
     try {
@@ -1754,7 +1755,7 @@ function vGovAsm() {
   return as.map(a=>`<div class="card"><div class="row between"><b>${esc(a.title)}</b><span class="badge ${a.status==='signed'?'ok':'warn'}">${esc(a.status)}</span></div>
     <div class="muted">${fmtD(a.held_at)} · PV ${esc(a.pv_ref||'—')} · 👥 ${a.attendees.length} ${esc(t('g_attendees'))}</div>
     <div><b>${esc(t('g_decisions'))}:</b><ul>${a.decisions.map(d=>`<li>${esc(d)}</li>`).join('')}</ul></div>
-    <button class="btn sm ghost" onclick="printPV('${a.id}')" style="margin-top:.4rem">${esc(t('pv_btn'))}</button></div>`).join('') +
+    <button class="btn sm ghost" onclick="printPV('${a.id}')" style="margin-top:.4rem">🖨️ ${esc(t('print_pv'))}</button></div>`).join('') +
   `<div class="card"><h2 style="margin-top:0">➕ ${esc(t('g_new_asm'))}</h2>
     <label class="f">${esc(t('ga_title'))}<input id="ga_t"></label>
     <label class="f">${esc(t('ga_date'))}<input id="ga_d" type="date"></label>
@@ -2050,7 +2051,7 @@ function vSettings(V) {
     <label class="f">${esc(t('set_newpin'))}<input id="s_np" type="password"></label>
     <button class="btn" id="s_pg">${esc(t('save'))}</button></div>
   <div class="card"><h2 style="margin-top:0">💾</h2>
-    <button class="btn ghost" id="s_x">📥 ${esc(t('set_export'))}</button>
+    <button class="btn ghost" id="s_x">📥 ${esc(t('download_backup'))}</button>
     <div class="row" style="margin-top:.6rem"><input type="file" id="s_i" accept=".json" style="margin:0"><button class="btn sm" id="s_ig">📤 ${esc(t('set_import'))}</button></div></div>
   <div class="card"><a class="btn ghost" href="#/login" style="text-decoration:none">🔄 ${esc(t('set_tenant'))}</a></div>
   <div class="card"><h2 style="margin-top:0;color:var(--danger)">⚠️ ${esc(t('set_danger'))}</h2>
