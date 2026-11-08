@@ -156,4 +156,9 @@ html[dir="rtl"] input, html[dir="rtl"] select, html[dir="rtl"] textarea { text-a
 html[dir="rtl"] input[type="number"], html[dir="rtl"] input[type="date"] { text-align: left; direction: ltr; }
 html[dir="rtl"] .row.between { direction: rtl; }
 
-@media print{ #topbar,#sidenav,#foot,.no-print{display:none!important} #view{max-width:100%} }
+@media print{
+  @page { size: A4 portrait; margin: 15mm 12mm 15mm 12mm; }
+  body, .print-document { font-family: 'Amiri', 'Cairo', serif !important; direction: rtl !important; text-align: right !important; -webkit-font-smoothing: antialiased; }
+  .ltr-field { direction: ltr !important; text-align: left !important; font-family: 'Cairo', sans-serif !important; }
+  #topbar,#sidenav,#foot,.no-print{display:none!important} #view{max-width:100%}
+}

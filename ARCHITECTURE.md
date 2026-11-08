@@ -49,3 +49,12 @@ to statutory governance and patronage dividends.
   Default admin login: `admin` / `daira2026` — change it in Settings after first login.
   Production uses bcrypt + JWT per the API spec.
 - File uploads (certificates) store metadata only in v1.
+
+## v3 — ERP & Governance Suite (2026-11-08, full spec)
+- **Finance (#/finance)**: journals caisse/banque/OD with running balance; budget prévisionnel with planned vs actual variance; loans & grants tracking; equipment register with straight-line depreciation and net value; CAF = net surplus + depreciation.
+- **Surplus wizard (Art. 69)**: `allocateSurplus69` — net surplus from sales + journal income − expenses; 10% legal reserve (capped at capital − already built), 2% development levy, discretionary special/training/reinvestment %, remainder → ristournes prorated by member activity (reuses `allocateDividends`).
+- **Actes officiels (#/actes)**: denomination request (3 names AR+Latin, founders, receipt stub), model statutes (29 articles, general/housing/harmonization), subscribers list (Art. 11), share certificates (Art. 21), greffe forms (immatriculation/modification/radiation, Arrêté 1369.16), AGM dossier (convocation, attendance Art. 45, proxy Art. 39, PV), members register (Art. 17 & 97).
+- **Operations**: purchase orders (#/intake/orders, auto-expense on receipt), packaging inventory (#/catalog/packaging, low-stock alerts), multi-channel sales (POS channel select: local/foire/magasin/social/e-commerce/B2B + per-channel totals).
+- **Typography**: Amiri + Cairo + Tajawal fonts; @page A4 print CSS; print windows now offer Imprimer + 📥 Télécharger PDF via vendored `html2pdf.bundle.min.js` (0.10.1).
+- **Validations**: CIN `^[A-Z]{1,2}[0-9]{5,6}$`, ICE 15 digits (when numeric), MA phone `^(05|06|07)[0-9]{8}$`.
+- **Docs (#/docs)**: replaced dev schema docs with the cooperative leader's guide (constitution, daily ops, year-end, legal/fiscal calendar) + template links.

@@ -34,6 +34,15 @@ const Daira = (() => {
       assemblies: {},
       votes: {},
       dividendCampaigns: {},
+      // Pillar 1 — operations & finance
+      purchaseOrders: {},   // bons de commande (achats matières premières)
+      packaging: {},        // stock emballages (bouteilles, bocaux, cartons, bouchons, étiquettes)
+      financeOps: {},       // écritures: journal caisse / banque / OD
+      equipment: {},        // registre d'inventaire & amortissements
+      loans: {},            // crédits bancaires
+      grants: {},           // subventions publiques & programmes d'accompagnement
+      budgets: {},          // budget prévisionnel annuel (lignes)
+      proxies: {},          // procurations AG (Art. 39)
       counters: {},         // tenantId:entity -> int  (for human codes)
       session: { tenantId: null, userId: null },  // persisted
     };
@@ -107,6 +116,8 @@ const Daira = (() => {
     'assembly.manage':       ['super_admin', 'manager'],
     'vote.manage':           ['super_admin', 'manager'],
     'dividend.run':          ['super_admin', 'manager'],
+    'finance.manage':        ['super_admin', 'manager'],
+    'legal.manage':          ['super_admin', 'manager'],
     'passport.generate':     ['super_admin', 'manager', 'supervisor'],
     'data.export':           ['super_admin', 'manager'],
   };
@@ -459,6 +470,72 @@ const Daira = (() => {
     return c;
   }
 
+  /* ---------------- Finance — surplus Art. 69 & CAF ------------------- */
+  // Capital souscrit = Σ parts des membres × valeur nominale de la part
+  function capitalSubscribed() {
+    const tn = DB.tenants[activeTenantId()] || {};
+    const sv = Number(tn.share_value) || 100;
+    return round2(scoped('members').reduce((s, m) => s + (Number(m.shares) || 0), 0) * sv);
+  }
+  // Réserve légale déjà constituée (campagnes antérieures confirmées/calculées)
+  function legalReserveBuilt() {
+    return round2(scoped('dividendCampaigns')
+      .filter(c => c.status !== 'cancelled')
+      .reduce((s, c) => s + (Number(c.legal_reserve) || 0), 0));
+  }
+  // Résultat net de l'exercice: ventes + recettes comptables − dépenses comptables
+  function computeSurplus(year) {
+    const y = String(year);
+    const sales = scoped('sales').filter(s => String(s.created_at).startsWith(y))
+      .reduce((s, x) => s + (Number(x.total) || 0), 0);
+    const finIn = scoped('financeOps').filter(f => String(f.date).startsWith(y) && f.type === 'in')
+      .reduce((s, x) => s + (Number(x.amount) || 0), 0);
+    const finOut = scoped('financeOps').filter(f => String(f.date).startsWith(y) && f.type === 'out')
+      .reduce((s, x) => s + (Number(x.amount) || 0), 0);
+    return { year: y, sales: round2(sales), otherIncome: round2(finIn), expenses: round2(finOut),
+             net: round2(sales + finIn - finOut) };
+  }
+  // Dotations annuelles aux amortissements (équipement)
+  function annualDepreciation() {
+    return round2(scoped('equipment').reduce((s, e) =>
+      s + (Number(e.value) || 0) * (Number(e.dep_rate) || 0) / 100, 0));
+  }
+  // Capacité d'autofinancement = résultat net + dotations aux amortissements
+  function computeCAF(year) {
+    const s = computeSurplus(year);
+    return { ...s, depreciation: annualDepreciation(), caf: round2(s.net + annualDepreciation()) };
+  }
+  // Wizard Art. 69: 10% réserve légale (jusqu'à égalité avec le capital),
+  // 2% رسم التنمية التعاونية, réserves spéciales / formation / réinvestissement (%), reste → ristournes
+  function allocateSurplus69(input) {
+    requirePerm('dividend.run');
+    const season = String(input.season || new Date().getFullYear());
+    const s = computeSurplus(season);
+    if (!(s.net > 0)) throw new Error('SURPLUS69: no net surplus for ' + season + ' (' + s.net + ' MAD)');
+    const capital = capitalSubscribed();
+    const room = Math.max(0, round2(capital - legalReserveBuilt()));
+    const legal = Math.min(round2(s.net * 0.10), room);
+    const levy = round2(s.net * 0.02);
+    const special = round2(s.net * (Number(input.specialPct) || 0) / 100);
+    const training = round2(s.net * (Number(input.trainingPct) || 0) / 100);
+    const reinvest = round2(s.net * (Number(input.reinvestPct) || 0) / 100);
+    const remainder = round2(s.net - legal - levy - special - training - reinvest);
+    if (!(remainder > 0)) throw new Error('SURPLUS69: nothing left for ristournes — lower the discretionary %');
+    const campaign = allocateDividends({ season, surplus: remainder,
+      note: input.note || 'Art. 69 — ' + season });
+    campaign.net_surplus = s.net;
+    campaign.legal_reserve = legal;
+    campaign.levy_dev = levy;
+    campaign.special_reserve = special;
+    campaign.training_fund = training;
+    campaign.reinvestment = reinvest;
+    campaign.ristourne_total = remainder;
+    campaign.breakdown = { sales: s.sales, otherIncome: s.otherIncome, expenses: s.expenses,
+      capital, reserve_room: room };
+    put('dividendCampaigns', campaign);
+    return campaign;
+  }
+
   /* ---------------- Passport (QR digital product passport) ------------- */
   function buildPassport(lotId) {
     const lot = get('finishedLots', lotId);
@@ -513,7 +590,8 @@ const Daira = (() => {
     const t = activeTenantId();
     const out = { tenant: DB.tenants[t] };
     ['users','members','materials','rawBatches','recipes','products','runs','finishedLots',
-     'invLedger','memberLedger','certifications','sales','assemblies','votes','dividendCampaigns']
+     'invLedger','memberLedger','certifications','sales','assemblies','votes','dividendCampaigns',
+     'purchaseOrders','packaging','financeOps','equipment','loans','grants','budgets','proxies']
       .forEach(c => { out[c] = Object.values(DB[c]).filter(r => r.tenant_id === t); });
     return out;
   }
@@ -529,6 +607,7 @@ const Daira = (() => {
     runTransformation,
     lotAvailable, createSale, adjustInventory,
     allocateDividends, confirmDividends,
+    capitalSubscribed, legalReserveBuilt, computeSurplus, annualDepreciation, computeCAF, allocateSurplus69,
     buildPassport,
     recordVote,
     exportTenant,

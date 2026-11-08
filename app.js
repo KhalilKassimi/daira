@@ -53,9 +53,11 @@ const NAV = [
   ['production', 'nav_prod', '🏭', 'production.run'],
   ['catalog', 'nav_catalog', '📦', 'recipe.manage'],
   ['stock', 'nav_stock', '💰', 'sale.create'],
+  ['finance', 'nav_finance', '📒', 'finance.manage'],
   ['certs', 'nav_certs', '📜', 'cert.manage'],
   ['passport', 'nav_pass', '🔳', 'passport.generate'],
   ['gov', 'nav_gov', '🏛️', 'assembly.manage'],
+  ['actes', 'nav_actes', '⚖️', 'legal.manage'],
   ['dividends', 'nav_div', '🤝', 'dividend.run'],
   ['docs', 'nav_docs', '📚', null],
   ['settings', 'nav_settings', '⚙️', null],
@@ -119,7 +121,7 @@ function reqFromCode(code) {
    and triggers the browser print dialog (Save as PDF supported).        */
 function printDoc(title, bodyHtml) {
   const css = `<style>
-    *{box-sizing:border-box} body{font-family:Arial,'Noto Sans Arabic',sans-serif;color:#111;margin:0;padding:18px;font-size:13px}
+    *{box-sizing:border-box} body{font-family:'Cairo',Arial,'Noto Sans Arabic',sans-serif;color:#111;margin:0;padding:18px;font-size:13px}
     .doc{max-width:700px;margin:0 auto}
     .doc-head{text-align:center;border-bottom:3px solid #0e6b4a;padding-bottom:10px;margin-bottom:14px}
     .doc-head h1{margin:.2rem 0;font-size:20px;color:#0e6b4a}
@@ -134,12 +136,33 @@ function printDoc(title, bodyHtml) {
     .qr svg{width:220px;height:220px}
     .foot{margin-top:16px;font-size:11px;color:#666;text-align:center;border-top:1px solid #ccc;padding-top:8px}
     h2{font-size:15px;color:#0e6b4a;margin:14px 0 6px}
-    @media print{ body{padding:0} .no-print{display:none} }
+    .ltr-field{direction:ltr !important;text-align:left !important;font-family:'Cairo',sans-serif !important}
+    @media print{
+      @page { size: A4 portrait; margin: 15mm 12mm 15mm 12mm; }
+      body, .print-document { font-family: 'Amiri', 'Cairo', serif !important; -webkit-font-smoothing: antialiased; }
+      body{padding:0} .no-print{display:none}
+    }
   </style>`;
+  const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">`;
+  const toolbar = `<div class="no-print" style="text-align:center;padding:10px 0;display:flex;gap:8px;justify-content:center">
+    <button onclick="window.print()" style="padding:.6rem 1.2rem;font-size:1rem;cursor:pointer">🖨️ Imprimer</button>
+    <button id="dlPdf" style="padding:.6rem 1.2rem;font-size:1rem;cursor:pointer;background:#0e6b4a;color:#fff;border:none;border-radius:6px">📥 Télécharger PDF</button></div>
+  <script>
+    document.getElementById('dlPdf').onclick = function() {
+      var btn = this; btn.textContent = '⏳…'; btn.disabled = true;
+      var lib = (window.opener && window.opener.html2pdf) || window.html2pdf;
+      if (!lib) { alert('PDF non disponible hors-ligne — utilisez Imprimer.'); btn.textContent = '📥 Télécharger PDF'; btn.disabled = false; return; }
+      var opt = { margin: 10, filename: document.title.replace(/[^a-zA-Z0-9-_àâäéèêëîïôöùûüç ]/g, '') + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+      lib().set(opt).from(document.querySelector('.doc')).save()
+        .then(function(){ btn.textContent = '📥 Télécharger PDF'; btn.disabled = false; })
+        .catch(function(){ btn.textContent = '📥 Télécharger PDF'; btn.disabled = false; });
+    };
+  <\/script>`;
   const w = window.open('', '_blank');
-  w.document.write('<!DOCTYPE html><html dir="' + (LANG === 'fr' ? 'ltr' : 'rtl') + '"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' + css + '</head><body><div class="doc">' + bodyHtml + '</div></body></html>');
+  w.document.write('<!DOCTYPE html><html dir="' + (LANG === 'fr' ? 'ltr' : 'rtl') + '"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' + fonts + css + '</head><body><div class="doc">' + bodyHtml + '</div>' + toolbar + '</body></html>');
   w.document.close(); w.focus();
-  setTimeout(() => w.print(), 400);
 }
 
 function waLink(phone, text) {
@@ -193,7 +216,7 @@ function render() {
   if (u.role !== 'super_admin' && !s.tenantId) { location.hash = '#/login'; return; }
   if (u && u.role === 'super_admin' && r[0] !== 'platform' && r[0] !== 'docs' && r[0] !== 'settings') { location.hash = '#/platform'; return; }
 
-  ({ dash: vDash, intake: vIntake, production: vProduction, catalog: vCatalog, stock: vStock, certs: vCerts,
+  ({ dash: vDash, intake: vIntake, production: vProduction, catalog: vCatalog, stock: vStock, finance: vFinance, certs: vCerts, actes: vActes,
      passport: vPassport, gov: vGov, dividends: vDividends, docs: vDocs, settings: vSettings,
      platform: vPlatform }[r[0]] || vDash)(V, r.slice(1));
   window.scrollTo(0, 0);
@@ -287,7 +310,9 @@ const OB_COLORS = ['#0e6b4a','#8a5a2b','#1f6f9e','#7b2d8b','#b03a2e','#2e4057'];
 const OB_EMOJIS = ['🌿','🫒','🍯','🧶','🌵','🐝','🥜','🫘'];
 const SECTORS = [['Oléicole','الزيتون'],['Argan','أركان'],['PAM','النباتات العطرية'],['Laitier','الحليب'],['Apicole','العسل'],['Artisanat','الصناعة التقليدية']];
 
-const isPhoneMA = v => /^(06|07)\d{8}$/.test(String(v).replace(/[\s-]/g, ''));
+const isPhoneMA = v => /^(05|06|07)\d{8}$/.test(String(v).replace(/[\s-]/g, ''));
+const isCIN = v => /^[A-Z]{1,2}[0-9]{5,6}$/.test(String(v).trim().toUpperCase());
+const isICE = v => /^\d{15}$/.test(String(v).trim());
 const isEmail = v => /^\S+@\S+\.\S+$/.test(String(v).trim());
 
 function obValidate(step) {
@@ -295,6 +320,7 @@ function obValidate(step) {
   if (step === 1) {
     if (!d.name || !d.name.trim()) errs.name = t('v_required');
     if (!d.odco || !d.odco.trim()) errs.odco = t('v_required');
+    else if (/^\d+$/.test(d.odco.trim()) && !isICE(d.odco)) errs.odco = t('v_ice');
     if (!d.sector) errs.sector = t('v_required');
     if (!d.category) errs.category = t('v_required');
     if (!d.region || !d.region.trim()) errs.region = t('v_required');
@@ -302,6 +328,7 @@ function obValidate(step) {
   if (step === 2) {
     if (!d.adminName || !d.adminName.trim()) errs.adminName = t('v_required');
     if (!d.cin || !d.cin.trim()) errs.cin = t('v_required');
+    else if (!isCIN(d.cin)) errs.cin = t('v_cin');
     if (!isPhoneMA(d.adminPhone)) errs.adminPhone = t('v_phone');
     if (!isEmail(d.email)) errs.email = t('v_email');
   }
@@ -549,6 +576,8 @@ function vDash(V) {
   const acts = [
     ['intake', 'd_new_intake', '🧺', 'intake.create'], ['production', 'd_new_run', '🏭', 'production.run'],
     ['catalog', 'd_new_catalog', '📦', 'recipe.manage'],
+    ['finance', 'nav_finance', '📒', 'finance.manage'],
+    ['actes', 'nav_actes', '⚖️', 'legal.manage'],
     ['stock', 'd_new_sale', '💰', 'sale.create'], ['gov', 'd_new_assembly', '🏛️', 'assembly.manage'],
   ].filter(a => Daira.can(a[3]));
 
@@ -606,12 +635,17 @@ function waLastReceipt() {
 }
 
 /* ---------------- intake ---------------- */
-function vIntake(V) {
+function vIntake(V, args) {
   if (!guard('intake.create')) return;
+  const tab = (args && args[0]) || 'reception';
+  if (tab === 'orders') { V.innerHTML = `<h1>🧺 ${esc(t('i_t'))}</h1>
+  <div class="row" style="margin-bottom:.8rem"><a href="#/intake/reception" class="btn sm ghost" style="flex:1;text-decoration:none">🧺 ${esc(t('i_t'))}</a><a href="#/intake/orders" class="btn sm" style="flex:1;text-decoration:none">📋 ${esc(t('po_t'))}</a></div>${vPO()}`;
+    bindPO(V); return; }
   const members = Daira.scoped('members').filter(m=>m.status==='active');
   const materials = Daira.scoped('materials');
   const grades = Object.keys(Daira.GRADE_TABLE);
   V.innerHTML = `<h1>🧺 ${esc(t('i_t'))}</h1>
+  <div class="row" style="margin-bottom:.8rem"><a href="#/intake/reception" class="btn sm" style="flex:1;text-decoration:none">🧺 ${esc(t('i_t'))}</a><a href="#/intake/orders" class="btn sm ghost" style="flex:1;text-decoration:none">📋 ${esc(t('po_t'))}</a></div>
   <div class="card">
     <label class="f">${esc(t('i_member'))}<select id="in_m">${members.map(m=>`<option value="${m.id}">${esc(m.name)} · ${esc(m.code)}</option>`).join('')}</select></label>
     <label class="f">${esc(t('i_material'))}<select id="in_mat">${materials.map(m=>`<option value="${m.id}">${esc(LANG==='fr'?m.name:m.name_ar)} (${m.base_price} MAD/${m.unit})</option>`).join('')}</select></label>
@@ -659,6 +693,57 @@ function vIntake(V) {
       $('#in_q').value = ''; upd();
       window.scrollTo(0, document.body.scrollHeight);
     } catch (e) { toast(t('err') + ': ' + e.message, true); }
+  };
+}
+
+/* ---------------- purchase orders (bons de commande) ---------------- */
+function vPO() {
+  const pos = [...Daira.scoped('purchaseOrders')].reverse();
+  const mats = Daira.scoped('materials');
+  const mName = id => { const m = Daira.get('materials', id); return m ? (LANG === 'fr' ? m.name : m.name_ar || m.name) : '—'; };
+  return `${pos.map(p=>`<div class="card" style="padding:.7rem"><div class="row between"><b>${esc(p.po_code)}</b><span class="badge ${p.status==='received'?'ok':'warn'}">${esc(p.status)}</span></div>
+    <div class="muted">${esc(p.vendor_name)} · ${esc(mName(p.material_id))} · ${p.qty} ${esc(p.unit||'')} × ${p.unit_price} MAD = <b>${fmtM(p.total)}</b> · ${fmtD(p.date)}</div>
+    ${p.status !== 'received' ? `<button class="btn sm" data-po-recv="${p.id}" style="margin-top:.4rem">✅ ${esc(t('po_received'))}</button>` : ''}</div>`).join('') || '<p class="muted">—</p>'}
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('po_t'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('po_vendor'))}<input id="po_v"></label>
+    <label class="f">${esc(t('po_vendor'))} — type<select id="po_vt"><option value="supplier">${esc(t('po_supplier'))}</option><option value="member">${esc(t('po_member'))}</option></select></label></div>
+    <div class="grid c2"><label class="f">${esc(t('cat_mat'))}<select id="po_m"><option value="">—</option>${mats.map(m=>`<option value="${m.id}">${esc(LANG==='fr'?m.name:m.name_ar||m.name)}</option>`).join('')}</select></label>
+    <label class="f">${esc(t('cat_qty'))}<input id="po_q" type="number" min="0" step="0.1"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('fin_amount'))} / unité<input id="po_p" type="number" min="0" step="0.1"></label>
+    <label class="f">${esc(t('fin_date'))}<input id="po_d" type="date" value="${new Date().toISOString().slice(0,10)}"></label></div>
+    <label class="f">${esc(t('po_status'))}<select id="po_s"><option value="draft">${esc(t('po_draft'))}</option><option value="received">${esc(t('po_received'))}</option></select></label>
+    <button class="btn" id="po_go">${esc(t('save'))}</button></div>`;
+}
+function bindPO(V) {
+  V.querySelectorAll('[data-po-recv]').forEach(b => b.onclick = () => {
+    const p = Daira.get('purchaseOrders', b.dataset.poRecv);
+    if (!p || p.status === 'received') return;
+    p.status = 'received';
+    Daira.put('purchaseOrders', p);
+    if (!p.expense_id) {
+      const fin = Daira.put('financeOps', { id: 'fin_' + Date.now().toString(36), kind: 'cash', type: 'out',
+        category: 'dépense', label: 'Achat: ' + p.vendor_name + ' — ' + p.po_code, amount: p.total,
+        date: new Date().toISOString(), ref: p.po_code });
+      p.expense_id = fin.id; Daira.put('purchaseOrders', p);
+    }
+    toast('✅'); render();
+  });
+  $('#po_go').onclick = () => {
+    const vendor = $('#po_v').value.trim(), qty = Number($('#po_q').value), price = Number($('#po_p').value);
+    if (!vendor || !(qty > 0) || !(price >= 0)) { toast(t('v_required'), true); return; }
+    const code = 'BC-' + new Date().getFullYear() + '-' + String(Daira.scoped('purchaseOrders').length + 1).padStart(3, '0');
+    const po = { id: 'po_' + Date.now().toString(36), po_code: code, vendor_name: vendor,
+      vendor_type: $('#po_vt').value, material_id: $('#po_m').value, qty, unit: 'kg',
+      unit_price: price, total: Daira.round2(qty * price), status: $('#po_s').value,
+      date: ($('#po_d').value || new Date().toISOString().slice(0,10)) + 'T00:00:00Z', note: '' };
+    Daira.put('purchaseOrders', po);
+    if (po.status === 'received') {
+      const fin = Daira.put('financeOps', { id: 'fin_' + Date.now().toString(36), kind: 'cash', type: 'out',
+        category: 'dépense', label: 'Achat: ' + vendor + ' — ' + code, amount: po.total,
+        date: new Date().toISOString(), ref: code });
+      po.expense_id = fin.id; Daira.put('purchaseOrders', po);
+    }
+    toast('✅ ' + code); render();
   };
 }
 
@@ -711,12 +796,13 @@ function vProduction(V, args) {
 function vCatalog(V, args) {
   if (!guard('recipe.manage')) return;
   const tab = args[0] || 'materials';
-  const tabs = [['materials','cat_mat','🌿'],['products','cat_prod','🫙'],['recipes','cat_rec','📋']];
+  const tabs = [['materials','cat_mat','🌿'],['products','cat_prod','🫙'],['recipes','cat_rec','📋'],['packaging','pkg_t','📦']];
   let body = `<h1>📦 ${esc(t('cat_t'))}</h1>
   <div class="row" style="margin-bottom:.8rem;flex-wrap:wrap">${tabs.map(([k,l,ico])=>`<a href="#/catalog/${k}" class="btn sm ${tab===k?'':'ghost'}" style="flex:1;text-decoration:none;min-width:90px">${ico} ${esc(t(l))}</a>`).join('')}</div>`;
   if (tab === 'materials') body += vCatMaterials();
   if (tab === 'products') body += vCatProducts();
   if (tab === 'recipes') body += vCatRecipes();
+  if (tab === 'packaging') body += vCatPackaging();
   V.innerHTML = body;
   bindCatalog(V, tab);
 }
@@ -780,6 +866,24 @@ function vCatRecipes() {
     <button class="btn" id="cr_go" style="margin-top:.6rem">${esc(t('cat_add'))}</button></div>`;
 }
 
+function vCatPackaging() {
+  const pk = Daira.scoped('packaging');
+  return `<div class="card" style="overflow-x:auto"><table>
+    <tr><th>${esc(t('fin_equip_name'))}</th><th>${esc(t('pkg_stock'))}</th><th>${esc(t('pkg_min'))}</th><th>${esc(t('fin_amount'))}</th><th></th></tr>
+    ${pk.map(p=>`<tr><td><b>${esc(p.name)}</b><br><span class="muted">${esc(p.unit)}</span></td>
+      <td><span class="badge ${p.stock <= p.min_stock ? 'warn' : 'ok'}">${p.stock}</span>${p.stock <= p.min_stock ? ' ⚠️ ' + esc(t('pkg_low')) : ''}</td>
+      <td>${p.min_stock}</td><td>${p.unit_cost} MAD</td>
+      <td><button class="btn sm danger" data-delcol="packaging" data-delid="${p.id}">${esc(t('cat_del'))}</button></td></tr>`).join('')
+    || `<tr><td colspan="5" class="muted">${esc(t('cat_empty'))}</td></tr>`}</table></div>
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('pkg_t'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('fin_equip_name'))}<input id="pk_n"></label>
+    <label class="f">${esc(t('cat_unit'))}<select id="pk_u"><option value="pièce">pièce</option><option value="kg">kg</option><option value="L">L</option></select></label></div>
+    <div class="grid c2"><label class="f">${esc(t('pkg_stock'))}<input id="pk_s" type="number" min="0" step="1"></label>
+    <label class="f">${esc(t('pkg_min'))}<input id="pk_m" type="number" min="0" step="1" value="50"></label></div>
+    <label class="f">${esc(t('fin_amount'))} / unité<input id="pk_c" type="number" min="0" step="0.1"></label>
+    <button class="btn" id="pk_go">${esc(t('cat_add'))}</button></div>`;
+}
+
 function bindCatalog(V, tab) {
   V.querySelectorAll('[data-delcol]').forEach(b => b.onclick = () => {
     try { Daira.requirePerm('recipe.manage'); } catch (e) { toast(t('no_perm'), true); return; }
@@ -827,6 +931,549 @@ function bindCatalog(V, tab) {
       toast('✅'); render();
     };
   }
+  if (tab === 'packaging') $('#pk_go').onclick = () => {
+    const name = $('#pk_n').value.trim(); if (!name) { toast(t('v_required'), true); return; }
+    Daira.put('packaging', { id: 'pkg_' + Date.now().toString(36), name, unit: $('#pk_u').value,
+      stock: Number($('#pk_s').value) || 0, min_stock: Number($('#pk_m').value) || 0,
+      unit_cost: Number($('#pk_c').value) || 0 });
+    toast('✅'); render();
+  };
+}
+
+/* ---------------- finance: journals / budget / funding / equipment / surplus 69 ---------------- */
+function vFinance(V, args) {
+  if (!guard('finance.manage')) return;
+  const tab = args[0] || 'journal';
+  const tabs = [['journal','fin_journal','📒'],['budget','fin_budget','📊'],['funding','fin_funding','🏦'],['equip','fin_equip','🧰'],['surplus','fin_surplus','⚖️']];
+  let body = `<h1>📒 ${esc(t('fin_t'))}</h1>
+  <div class="row" style="margin-bottom:.8rem;flex-wrap:wrap">${tabs.map(([k,l,ico])=>`<a href="#/finance/${k}" class="btn sm ${tab===k?'':'ghost'}" style="flex:1;text-decoration:none;min-width:90px">${ico} ${esc(t(l))}</a>`).join('')}</div>`;
+  if (tab === 'journal') body += vFinJournal(args[1] || 'cash');
+  if (tab === 'budget') body += vFinBudget();
+  if (tab === 'funding') body += vFinFunding();
+  if (tab === 'equip') body += vFinEquip();
+  if (tab === 'surplus') body += vFinSurplus();
+  V.innerHTML = body;
+  bindFinance(V, tab, args[1] || 'cash');
+}
+function finYearOps(y) {
+  return Daira.scoped('financeOps').filter(f => String(f.date).startsWith(String(y)));
+}
+function vFinJournal(kind) {
+  const kinds = [['cash','fin_cash','💵'],['bank','fin_bank','🏦'],['od','fin_od','📋']];
+  const ops = Daira.scoped('financeOps').filter(f => f.kind === kind)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  let bal = 0;
+  const rows = ops.map(f => { bal += f.type === 'in' ? f.amount : -f.amount;
+    return `<tr><td>${fmtD(f.date)}</td><td>${esc(f.label)}</td><td class="muted">${esc(f.ref||'')}</td>
+    <td style="color:var(--ok)">${f.type==='in'?fmtM(f.amount):''}</td>
+    <td style="color:var(--danger)">${f.type==='out'?fmtM(f.amount):''}</td>
+    <td><b>${fmtM(bal)}</b></td></tr>`; }).join('');
+  const totIn = ops.filter(f=>f.type==='in').reduce((s,f)=>s+f.amount,0);
+  const totOut = ops.filter(f=>f.type==='out').reduce((s,f)=>s+f.amount,0);
+  return `<div class="row" style="margin-bottom:.8rem">${kinds.map(([k,l,ico])=>`<a href="#/finance/journal/${k}" class="btn sm ${kind===k?'':'ghost'}" style="flex:1;text-decoration:none">${ico} ${esc(t(l))}</a>`).join('')}</div>
+  <div class="grid c2" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi"><div class="n">${fmtM(totIn)}</div><div class="l">${esc(t('fin_total_in'))}</div></div>
+    <div class="kpi"><div class="n">${fmtM(totOut)}</div><div class="l">${esc(t('fin_total_out'))}</div></div>
+    <div class="kpi"><div class="n">${fmtM(bal)}</div><div class="l">${esc(t('fin_balance'))}</div></div>
+  </div>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>${esc(t('fin_date'))}</th><th>${esc(t('fin_label'))}</th><th>Réf.</th><th>${esc(t('fin_in'))}</th><th>${esc(t('fin_out'))}</th><th>${esc(t('fin_balance'))}</th></tr>
+    ${rows || `<tr><td colspan="6" class="muted">—</td></tr>`}</table></div>
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('fin_journal'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('fin_kind'))}<select id="fj_k"><option value="cash">${esc(t('fin_cash'))}</option><option value="bank">${esc(t('fin_bank'))}</option><option value="od">${esc(t('fin_od'))}</option></select></label>
+    <label class="f">${esc(t('fin_status'))}<select id="fj_ty"><option value="in">${esc(t('fin_in'))}</option><option value="out">${esc(t('fin_out'))}</option></select></label></div>
+    <label class="f">${esc(t('fin_label'))}<input id="fj_l"></label>
+    <div class="grid c2"><label class="f">${esc(t('fin_amount'))}<input id="fj_a" type="number" min="0" step="0.1"></label>
+    <label class="f">${esc(t('fin_date'))}<input id="fj_d" type="date" value="${new Date().toISOString().slice(0,10)}"></label></div>
+    <button class="btn" id="fj_go">${esc(t('save'))}</button></div>`;
+}
+function vFinBudget() {
+  const y = new Date().getFullYear();
+  const lines = Daira.scoped('budgets').filter(b => Number(b.year) === y);
+  const s = Daira.computeSurplus(y);
+  const plannedRev = lines.filter(l=>l.kind==='rev').reduce((a,l)=>a+l.planned,0);
+  const plannedExp = lines.filter(l=>l.kind==='exp').reduce((a,l)=>a+l.planned,0);
+  const actualRev = s.sales + s.otherIncome, actualExp = s.expenses;
+  const row = (l) => `<tr><td>${esc(l.label)}</td><td>${l.kind==='rev'?esc(t('fin_in')):esc(t('fin_out'))}</td><td>${fmtM(l.planned)}</td><td>—</td><td>—</td></tr>`;
+  return `<div class="card"><h2 style="margin-top:0">📊 ${esc(t('fin_budget'))} — ${y}</h2>
+  <div class="grid c2" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi"><div class="n">${fmtM(plannedRev)}</div><div class="l">${esc(t('fin_planned'))} · ${esc(t('fin_in'))}</div><div class="muted">${esc(t('fin_actual'))}: ${fmtM(actualRev)} (${fmtM(actualRev-plannedRev)})</div></div>
+    <div class="kpi"><div class="n">${fmtM(plannedExp)}</div><div class="l">${esc(t('fin_planned'))} · ${esc(t('fin_out'))}</div><div class="muted">${esc(t('fin_actual'))}: ${fmtM(actualExp)} (${fmtM(actualExp-plannedExp)})</div></div>
+  </div></div>
+  <div class="card" style="overflow-x:auto"><table>
+    <tr><th>${esc(t('fin_label'))}</th><th>${esc(t('fin_kind'))}</th><th>${esc(t('fin_planned'))}</th><th>${esc(t('fin_actual'))}</th><th>${esc(t('fin_variance'))}</th></tr>
+    ${lines.map(row).join('') || `<tr><td colspan="5" class="muted">—</td></tr>`}</table></div>
+  <div class="card"><h2 style="margin-top:0">➕</h2>
+    <div class="grid c2"><label class="f">${esc(t('fin_label'))}<input id="fb_l"></label>
+    <label class="f">${esc(t('fin_kind'))}<select id="fb_k"><option value="rev">${esc(t('fin_in'))}</option><option value="exp">${esc(t('fin_out'))}</option></select></label></div>
+    <label class="f">${esc(t('fin_planned'))} (MAD)<input id="fb_p" type="number" min="0" step="1"></label>
+    <button class="btn" id="fb_go">${esc(t('save'))}</button></div>`;
+}
+function vFinFunding() {
+  const y = new Date().getFullYear();
+  const caf = Daira.computeCAF(y);
+  const loans = Daira.scoped('loans'), grants = Daira.scoped('grants');
+  return `<div class="grid c2" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi"><div class="n">${fmtM(caf.net)}</div><div class="l">${esc(t('fin_net'))} ${y}</div></div>
+    <div class="kpi"><div class="n">${fmtM(caf.depreciation)}</div><div class="l">${esc(t('fin_dep'))}</div></div>
+    <div class="kpi"><div class="n">${fmtM(caf.caf)}</div><div class="l">${esc(t('fin_caf'))}</div></div>
+  </div>
+  <h2>🏦 ${esc(t('fin_loan'))}</h2>
+  ${loans.map(l=>`<div class="card"><div class="row between"><b>${esc(l.lender)}</b><span class="badge info">${esc(l.status)}</span></div>
+    <div class="muted">${fmtM(l.amount)} · ${l.rate}% · ${l.duration_months} mois · ${esc(t('fin_monthly'))} ${fmtM(l.monthly_payment||0)} · ${esc(t('fin_remaining'))} <b>${fmtM(l.remaining)}</b></div></div>`).join('') || '<p class="muted">—</p>'}
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('fin_loan'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('fin_lender'))}<input id="fl_org" placeholder="Crédit Agricole…"></label>
+    <label class="f">${esc(t('fin_amount'))}<input id="fl_a" type="number" min="0" step="1"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('fin_rate'))}<input id="fl_r" type="number" min="0" step="0.1"></label>
+    <label class="f">${esc(t('fin_monthly'))}<input id="fl_m" type="number" min="0" step="1"></label></div>
+    <label class="f">${esc(t('fin_remaining'))}<input id="fl_rem" type="number" min="0" step="1"></label>
+    <button class="btn" id="fl_go">${esc(t('save'))}</button></div>
+  <h2>🎁 ${esc(t('fin_grant'))}</h2>
+  ${grants.map(g=>`<div class="card"><div class="row between"><b>${esc(g.program)}</b><span class="badge ${g.status==='received'?'ok':'warn'}">${esc(g.status)}</span></div>
+    <div class="muted">${esc(g.source)} · ${esc(t('fin_requested'))} ${fmtM(g.amount_requested)} · ${esc(t('fin_received'))} ${fmtM(g.amount_received)}</div></div>`).join('') || '<p class="muted">—</p>'}
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('fin_grant'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('fin_grant'))}<input id="fg_p" placeholder="INDH…"></label>
+    <label class="f">${esc(t('fin_source'))}<input id="fg_s" placeholder="INDH / ADA / Région…"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('fin_requested'))}<input id="fg_rq" type="number" min="0" step="1"></label>
+    <label class="f">${esc(t('fin_received'))}<input id="fg_rc" type="number" min="0" step="1"></label></div>
+    <label class="f">${esc(t('fin_status'))}<select id="fg_st"><option value="applied">applied</option><option value="approved">approved</option><option value="received">received</option><option value="rejected">rejected</option></select></label>
+    <button class="btn" id="fg_go">${esc(t('save'))}</button></div>`;
+}
+function vFinEquip() {
+  const y = new Date().getFullYear();
+  const eqs = Daira.scoped('equipment');
+  const netVal = e => {
+    const years = Math.max(0, y - new Date(e.acquired_at).getFullYear());
+    return Math.max(0, Daira.round2(e.value * (1 - (e.dep_rate || 0) * years / 100)));
+  };
+  return `<div class="card" style="overflow-x:auto"><table>
+    <tr><th>${esc(t('fin_equip_name'))}</th><th>${esc(t('fin_acquired'))}</th><th>${esc(t('fin_value'))}</th><th>${esc(t('fin_dep_rate'))}</th><th>${esc(t('fin_net_value'))}</th></tr>
+    ${eqs.map(e=>`<tr><td><b>${esc(e.name)}</b></td><td>${fmtD(e.acquired_at)}</td><td>${fmtM(e.value)}</td><td>${e.dep_rate}%</td><td><b>${fmtM(netVal(e))}</b></td></tr>`).join('') || `<tr><td colspan="5" class="muted">—</td></tr>`}</table></div>
+  <div class="card"><h2 style="margin-top:0">➕ ${esc(t('fin_equip'))}</h2>
+    <div class="grid c2"><label class="f">${esc(t('fin_equip_name'))}<input id="fe_n"></label>
+    <label class="f">${esc(t('fin_acquired'))}<input id="fe_d" type="date" value="${new Date().toISOString().slice(0,10)}"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('fin_value'))}<input id="fe_v" type="number" min="0" step="1"></label>
+    <label class="f">${esc(t('fin_dep_rate'))}<input id="fe_r" type="number" min="0" max="100" step="1" value="10"></label></div>
+    <button class="btn" id="fe_go">${esc(t('save'))}</button></div>`;
+}
+function vFinSurplus() {
+  const y = new Date().getFullYear();
+  const s = Daira.computeSurplus(y);
+  const capital = Daira.capitalSubscribed();
+  const built = Daira.legalReserveBuilt();
+  const room = Math.max(0, Daira.round2(capital - built));
+  const last = [...Daira.scoped('dividendCampaigns')].reverse()[0];
+  return `<div class="card"><h2 style="margin-top:0">⚖️ ${esc(t('fin_surplus_t'))} — ${y}</h2>
+    <div class="row between"><span>Ventes</span><b>${fmtM(s.sales)}</b></div>
+    <div class="row between"><span>${esc(t('fin_total_in'))} (hors ventes)</span><b>${fmtM(s.otherIncome)}</b></div>
+    <div class="row between"><span>${esc(t('fin_total_out'))}</span><b>${fmtM(s.expenses)}</b></div>
+    <div class="row between" style="font-size:1.15rem"><span>${esc(t('fin_net'))}</span><b>${fmtM(s.net)}</b></div>
+    <div class="row between"><span>${esc(t('fin_capital'))}</span><b>${fmtM(capital)}</b></div>
+    <div class="row between"><span>${esc(t('fin_legal_reserve'))} — ${esc(t('fin_reserve_room'))}</span><b>${fmtM(room)}</b></div>
+  </div>
+  <div class="card"><h2 style="margin-top:0">${esc(t('fin_surplus_t'))}</h2>
+    <div class="grid c2">
+      <label class="f">${esc(t('fin_special'))}<input id="fs_sp" type="number" min="0" max="100" value="5" step="1"></label>
+      <label class="f">${esc(t('fin_training'))}<input id="fs_tr" type="number" min="0" max="100" value="5" step="1"></label>
+    </div>
+    <label class="f">${esc(t('fin_reinvest'))}<input id="fs_ri" type="number" min="0" max="100" value="10" step="1"></label>
+    <p class="muted">10% ${esc(t('fin_legal_reserve'))} + 2% ${esc(t('fin_levy'))} — ${esc(t('fin_ristournes'))} = reste, ${esc(t('fin_ristournes'))}.</p>
+    <button class="btn" id="fs_go">⚖️ ${esc(t('fin_run_wizard'))}</button>
+    <div id="fs_done"></div>
+  </div>
+  ${last && last.legal_reserve !== undefined ? `<div class="card"><h2 style="margin-top:0">${esc(t('fin_surplus_t'))} — ${esc(last.season)}</h2>
+    <div class="row between"><span>${esc(t('fin_net'))}</span><b>${fmtM(last.net_surplus)}</b></div>
+    <div class="row between"><span>${esc(t('fin_legal_reserve'))}</span><b>${fmtM(last.legal_reserve)}</b></div>
+    <div class="row between"><span>${esc(t('fin_levy'))}</span><b>${fmtM(last.levy_dev)}</b></div>
+    <div class="row between"><span>${esc(t('fin_special'))}</span><b>${fmtM(last.special_reserve)}</b></div>
+    <div class="row between"><span>${esc(t('fin_training'))}</span><b>${fmtM(last.training_fund)}</b></div>
+    <div class="row between"><span>${esc(t('fin_reinvest'))}</span><b>${fmtM(last.reinvestment)}</b></div>
+    <div class="row between"><span>${esc(t('fin_ristournes'))}</span><b>${fmtM(last.ristourne_total)}</b></div>
+    <a class="btn ghost sm" href="#/dividends" style="text-decoration:none">${esc(t('nav_div'))} →</a></div>` : ''}`;
+}
+function bindFinance(V, tab, kind) {
+  if (tab === 'journal') $('#fj_go').onclick = () => {
+    const label = $('#fj_l').value.trim(), amount = Number($('#fj_a').value);
+    if (!label || !(amount > 0)) { toast(t('v_required'), true); return; }
+    Daira.put('financeOps', { id: 'fin_' + Date.now().toString(36), kind: $('#fj_k').value,
+      type: $('#fj_ty').value, category: $('#fj_ty').value === 'in' ? 'recette' : 'dépense',
+      label, amount, date: ($('#fj_d').value || new Date().toISOString().slice(0,10)) + 'T00:00:00Z',
+      ref: 'JNL-' + new Date().getFullYear() + '-' + String(Daira.scoped('financeOps').length + 1).padStart(3, '0') });
+    toast('✅'); render();
+  };
+  if (tab === 'budget') $('#fb_go').onclick = () => {
+    const label = $('#fb_l').value.trim(), planned = Number($('#fb_p').value);
+    if (!label || !(planned >= 0)) { toast(t('v_required'), true); return; }
+    Daira.put('budgets', { id: 'bud_' + Date.now().toString(36), year: new Date().getFullYear(),
+      label, kind: $('#fb_k').value, planned });
+    toast('✅'); render();
+  };
+  if (tab === 'funding') {
+    $('#fl_go').onclick = () => {
+      const lender = $('#fl_org').value.trim(), amount = Number($('#fl_a').value);
+      if (!lender || !(amount > 0)) { toast(t('v_required'), true); return; }
+      Daira.put('loans', { id: 'loa_' + Date.now().toString(36), lender, amount,
+        rate: Number($('#fl_r').value) || 0, monthly_payment: Number($('#fl_m').value) || 0,
+        remaining: Number($('#fl_rem').value) || amount, duration_months: 36,
+        start_date: new Date().toISOString(), status: 'en cours' });
+      toast('✅'); render();
+    };
+    $('#fg_go').onclick = () => {
+      const program = $('#fg_p').value.trim();
+      if (!program) { toast(t('v_required'), true); return; }
+      Daira.put('grants', { id: 'grn_' + Date.now().toString(36), program, source: $('#fg_s').value.trim(),
+        amount_requested: Number($('#fg_rq').value) || 0, amount_received: Number($('#fg_rc').value) || 0,
+        status: $('#fg_st').value, date: new Date().toISOString() });
+      toast('✅'); render();
+    };
+  }
+  if (tab === 'equip') $('#fe_go').onclick = () => {
+    const name = $('#fe_n').value.trim(), value = Number($('#fe_v').value);
+    if (!name || !(value > 0)) { toast(t('v_required'), true); return; }
+    Daira.put('equipment', { id: 'eqp_' + Date.now().toString(36), name,
+      acquired_at: ($('#fe_d').value || new Date().toISOString().slice(0,10)) + 'T00:00:00Z',
+      value, dep_rate: Number($('#fe_r').value) || 0, status: 'actif' });
+    toast('✅'); render();
+  };
+  if (tab === 'surplus') $('#fs_go').onclick = () => {
+    try {
+      const c = Daira.allocateSurplus69({ season: new Date().getFullYear(),
+        specialPct: Number($('#fs_sp').value) || 0, trainingPct: Number($('#fs_tr').value) || 0,
+        reinvestPct: Number($('#fs_ri').value) || 0 });
+      toast('✅ ' + t('fin_ristournes') + ': ' + fmtM(c.ristourne_total));
+      render();
+    } catch (e) { toast(t('err') + ': ' + e.message, true); }
+  };
+}
+
+/* ---------------- actes officiels (Loi 112-12 / ODCO) ---------------- */
+function vActes(V, args) {
+  if (!guard('legal.manage')) return;
+  const tab = args[0] || 'denom';
+  const tabs = [['denom','act_denom','📝'],['statuts','act_statuts','📜'],['subs','act_subs','📋'],['shares','act_shares','🎫'],['greffe','act_greffe','🏛️'],['ag','act_ag','👥'],['register','act_register','📖']];
+  let body = `<h1>⚖️ ${esc(t('act_t'))}</h1>
+  <div class="row" style="margin-bottom:.8rem;flex-wrap:wrap">${tabs.map(([k,l,ico])=>`<a href="#/actes/${k}" class="btn sm ${tab===k?'':'ghost'}" style="flex:1;text-decoration:none;min-width:110px">${ico} ${esc(t(l))}</a>`).join('')}</div>`;
+  if (tab === 'denom') body += vActDenom();
+  if (tab === 'statuts') body += vActStatuts();
+  if (tab === 'subs') body += vActSubs();
+  if (tab === 'shares') body += vActShares();
+  if (tab === 'greffe') body += vActGreffe();
+  if (tab === 'ag') body += vActAG();
+  if (tab === 'register') body += vActRegister();
+  V.innerHTML = body;
+  bindActes(V, tab);
+}
+function vActDenom() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const nameRow = (n) => `<div class="grid c2"><label class="f">${esc(t('act_name'+n))} (ar)<input id="dn_a${n}" value="${n===1?esc(tn.name_ar||''):''}"></label>
+    <label class="f">${esc(t('act_name'+n))} · ${esc(t('act_name_lat'))}<input id="dn_l${n}" value="${n===1?esc(tn.name||''):''}"></label></div>`;
+  return `<div class="card"><h2 style="margin-top:0">📝 ${esc(t('act_denom'))}</h2>
+    ${nameRow(1)}${nameRow(2)}${nameRow(3)}
+    <div class="grid c2"><label class="f">${esc(t('ob_sector'))}<select id="dn_sec">${SECTORS.map(([fr,ar])=>`<option value="${fr}" ${tn.sector===fr?'selected':''}>${fr} / ${ar}</option>`).join('')}</select></label>
+    <label class="f">${esc(t('ob_province'))}<input id="dn_prov" value="${esc(tn.province||'')}"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('act_applicant'))}<input id="dn_app" value="${esc(tn.adminName||'')}"></label>
+    <label class="f">${esc(t('gm_cin'))}<input id="dn_cin" value="${esc(tn.cin||'')}"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('ob_phone'))}<input id="dn_ph" value="${esc(tn.phone||'')}"></label>
+    <label class="f">${esc(t('ob_capital_lib'))}<input id="dn_cap" type="number" min="0" value="${esc(tn.capital_liberated||'')}"></label></div>
+    <p class="muted">Min. 5 membres fondateurs — ${Daira.scoped('members').length} inscrits.</p>
+    <button class="btn" id="dn_go">🖨️ ${esc(t('act_print'))}</button></div>`;
+}
+function vActStatuts() {
+  return `<div class="card"><h2 style="margin-top:0">📜 ${esc(t('act_statuts'))}</h2>
+    <label class="f">${esc(t('act_coop_type'))}<select id="st_ty">
+      <option value="general">${esc(t('act_type_general'))}</option>
+      <option value="housing">${esc(t('act_type_housing'))}</option>
+      <option value="harmon">${esc(t('act_type_harmon'))}</option></select></label>
+    <p class="muted">29 articles — modèle ODCO conforme à la Loi 112-12 (Dahir 1.14.189).</p>
+    <button class="btn" id="st_go">🖨️ ${esc(t('act_print'))}</button></div>`;
+}
+function vActSubs() {
+  const ms = Daira.scoped('members');
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const sv = tn.share_value || 100;
+  return `<div class="card" style="overflow-x:auto"><table>
+    <tr><th>#</th><th>${esc(t('gm_lastname'))}</th><th>${esc(t('gm_cin'))}</th><th>${esc(t('act_shares_sub'))}</th><th>${esc(t('act_shares_paid'))}</th><th>${esc(t('fin_amount'))}</th></tr>
+    ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname||'')}</td><td>${esc(m.cin||'—')}</td><td>${m.shares||0}</td><td>${m.shares_paid||0}</td><td>${fmtM((m.shares_paid||0)*sv)}</td></tr>`).join('') || `<tr><td colspan="6" class="muted">—</td></tr>`}</table></div>
+  <button class="btn" id="sb_go">🖨️ ${esc(t('act_print'))}</button>`;
+}
+function vActShares() {
+  const ms = Daira.scoped('members');
+  return `<div class="card"><h2 style="margin-top:0">🎫 ${esc(t('act_share_cert'))}</h2>
+    <label class="f">${esc(t('v_member'))}<select id="sc_m">${ms.map(m=>`<option value="${m.id}">${esc(m.name)} ${esc(m.firstname||'')} — ${m.shares||0} parts</option>`).join('')}</select></label>
+    <button class="btn" id="sc_go">🖨️ ${esc(t('act_print'))}</button></div>`;
+}
+function vActGreffe() {
+  return `<div class="card"><h2 style="margin-top:0">🏛️ ${esc(t('act_greffe'))} — Arrêté 1369.16</h2>
+    <div class="grid c2"><label class="f">${esc(t('act_greffe_mod'))}<input id="gr_mod" placeholder="Nature de la modification…"></label>
+    <label class="f">${esc(t('act_greffe_rad'))}<input id="gr_rad" placeholder="Motif de la radiation…"></label></div>
+    <div class="row" style="flex-wrap:wrap">
+      <button class="btn" id="gr_imm">🖨️ ${esc(t('act_greffe_imm'))}</button>
+      <button class="btn ghost" id="gr_mod_go">🖨️ ${esc(t('act_greffe_mod'))}</button>
+      <button class="btn ghost" id="gr_rad_go">🖨️ ${esc(t('act_greffe_rad'))}</button>
+    </div></div>`;
+}
+function vActAG() {
+  const asms = Daira.scoped('assemblies');
+  const ms = Daira.scoped('members');
+  const px = Daira.scoped('proxies');
+  return `<div class="card"><h2 style="margin-top:0">👥 ${esc(t('act_ag'))}</h2>
+    <label class="f">${esc(t('g_assembly'))}<select id="ag_a">${asms.map(a=>`<option value="${a.id}">${esc(a.title)} — ${fmtD(a.held_at)}</option>`).join('')}</select></label>
+    <div class="row" style="flex-wrap:wrap">
+      <button class="btn" id="ag_conv">🖨️ ${esc(t('act_ag_conv'))}</button>
+      <button class="btn ghost" id="ag_att">🖨️ ${esc(t('act_ag_att'))}</button>
+      <button class="btn ghost" id="ag_pv">🖨️ ${esc(t('act_ag_pv'))}</button>
+    </div></div>
+  <div class="card"><h2 style="margin-top:0">📝 ${esc(t('act_ag_proxy'))}</h2>
+    ${px.map(p=>`<div class="row between"><span>${esc(p.member_name)} → <b>${esc(p.proxy_to)}</b> · ${fmtD(p.date)}</span></div>`).join('') || '<p class="muted">—</p>'}
+    <div class="grid c2"><label class="f">${esc(t('v_member'))}<select id="px_m">${ms.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select></label>
+    <label class="f">${esc(t('act_applicant'))} (mandataire)<input id="px_to"></label></div>
+    <button class="btn" id="px_go">${esc(t('save'))}</button>
+    <button class="btn ghost" id="px_print" style="margin-top:.5rem">🖨️ ${esc(t('act_print'))}</button></div>`;
+}
+function vActRegister() {
+  const ms = Daira.scoped('members');
+  return `<div class="card" style="overflow-x:auto"><table>
+    <tr><th>#</th><th>${esc(t('gm_lastname'))}</th><th>${esc(t('gm_cin'))}</th><th>${esc(t('gm_fonction'))}</th><th>${esc(t('act_shares_sub'))}</th><th>${esc(t('gm_status'))}</th></tr>
+    ${ms.map(m=>`<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname||'')}</td><td>${esc(m.cin||'—')}</td><td>${m.fonction&&m.fonction!=='member'?esc(t('fo_'+m.fonction)):'—'}</td><td>${m.shares||0}</td><td>${esc(m.status)}</td></tr>`).join('') || `<tr><td colspan="6" class="muted">—</td></tr>`}</table></div>
+  <p class="muted">Art. 17 & 97 — Loi 112-12 : registre tenu à jour (adhésions, cessions, sorties).</p>
+  <button class="btn" id="rg_go">🖨️ ${esc(t('act_print'))}</button>`;
+}
+function bindActes(V, tab) {
+  if (tab === 'denom') $('#dn_go').onclick = () => printDenom();
+  if (tab === 'statuts') $('#st_go').onclick = () => printStatuts($('#st_ty').value);
+  if (tab === 'subs') $('#sb_go').onclick = () => printSubs();
+  if (tab === 'shares') $('#sc_go').onclick = () => printShareCert($('#sc_m').value);
+  if (tab === 'greffe') {
+    $('#gr_imm').onclick = () => printGreffe('imm');
+    $('#gr_mod_go').onclick = () => printGreffe('mod', $('#gr_mod').value);
+    $('#gr_rad_go').onclick = () => printGreffe('rad', $('#gr_rad').value);
+  }
+  if (tab === 'ag') {
+    $('#ag_conv').onclick = () => printConvocation($('#ag_a').value);
+    $('#ag_att').onclick = () => printAttendance($('#ag_a').value);
+    $('#ag_pv').onclick = () => printPV($('#ag_a').value);
+    $('#px_go').onclick = () => {
+      const mid = $('#px_m').value, to = $('#px_to').value.trim();
+      if (!mid || !to) { toast(t('v_required'), true); return; }
+      const m = Daira.get('members', mid);
+      Daira.put('proxies', { id: 'prx_' + Date.now().toString(36), assembly_id: $('#ag_a').value,
+        member_id: mid, member_name: m ? m.name : '', proxy_to: to, date: new Date().toISOString() });
+      toast('✅'); render();
+    };
+    $('#px_print').onclick = () => printProxyForm();
+  }
+  if (tab === 'register') $('#rg_go').onclick = () => printRegister();
+}
+
+/* --- Actes print templates --- */
+function printDenom() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const ms = Daira.scoped('members').filter(m => m.status === 'active').slice(0, 8);
+  const names = [1, 2, 3].map(n => ({ ar: g('dn_a' + n), lat: g('dn_l' + n) }));
+  const html = `
+  <div class="doc-head"><h1>طلب المصادقة على تسمية التعاونية</h1>
+    <div class="sub">مكتب تنمية التعاون (ODCO) — القانون رقم 112-12</div></div>
+  <h2>1 — التسميات المقترحة</h2>
+  <table>${names.map((n, i) => `<tr><th>مقترح ${i + 1}</th><td>${esc(n.ar || '—')}</td><td class="ltr-field">${esc(n.lat || '—')}</td></tr>`).join('')}</table>
+  <h2>2 — معلومات حول التعاونية</h2>
+  <table>
+    <tr><th>القطاع</th><td>${esc(g('dn_sec') || tn.sector || '—')}</td></tr>
+    <tr><th>الإقليم</th><td>${esc(g('dn_prov') || tn.province || '—')}</td></tr>
+    <tr><th>الغرض الرئيسي</th><td>${esc(tn.purpose || '—')}</td></tr>
+    <tr><th>رأس المال المحرر</th><td>${fmtM(Number(g('dn_cap')) || tn.capital_liberated || 0)}</td></tr>
+  </table>
+  <h2>3 — الأعضاء الموقعون (5 على الأقل)</h2>
+  <table><tr><th>الاسم الكامل</th><th>العنوان</th><th>وثيقة التعريف</th><th>التوقيع</th></tr>
+  ${ms.map(m => `<tr><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.village || '—')}</td><td>${esc(m.cin || '—')}</td><td></td></tr>`).join('')}</table>
+  <h2>4 — المودع</h2>
+  <table>
+    <tr><th>الاسم الكامل</th><td>${esc(g('dn_app') || tn.adminName || '—')}</td></tr>
+    <tr><th>وثيقة التعريف</th><td>${esc(g('dn_cin') || tn.cin || '—')}</td></tr>
+    <tr><th>الهاتف</th><td>${esc(g('dn_ph') || tn.phone || '—')}</td></tr>
+  </table>
+  <p class="muted">تبقى المصادقة على التسمية سارية المفعول لمدة ستين (60) يوما ابتداء من تاريخ إصدارها، قابلة للتجديد مرة واحدة لنفس المدة.</p>
+  <div style="border:2px dashed #999;padding:12px;margin-top:16px">
+    <b>${esc(t('act_receipt'))} — وصل الإيداع</b><br>
+    <span class="muted">رقم الإيداع: ……………… · التاريخ: ${fmtD(new Date())} · ختم مكتب تنمية التعاون</span>
+  </div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_denom'), html);
+}
+const STATUTS_ARTICLES = [
+  ['التأسيس والتسمية', 'تأسست التعاونية المسماة أعلاه طبقا لأحكام القانون رقم 112-12 المتعلق بالتعاونيات، الصادر بتنفيذه الظهير الشريف رقم 1.14.189 بتاريخ 21 نونبر 2014.'],
+  ['المقر', 'يوجد المقر الرسمي للتعاونية بالعنوان المبين أعلاه، ويمكن نقله بقرار من الجمع العام.'],
+  ['المدة', 'حددت مدة التعاونية في 99 سنة ابتداء من تاريخ تسجيلها بالسجل المحلي للتعاونيات، قابلة للتجديد بقرار من الجمع العام الاستثنائي.'],
+  ['الغرض', 'تهدف التعاونية إلى ممارسة النشاط المبين في الغرض الرئيسي لفائدة أعضائها، وفق مبادئ التعاون والتضامن.'],
+  ['رأس المال', 'يتكون رأس المال المكتتب من حصص اسمية، قيمة كل حصة كما هي مبينة في لائحة المكتتبين، ويحرر نقدا أو عينا.'],
+  ['الحصص', 'الحصص اسمية وغير قابلة للتجزئة، ولا يجوز التنازل عنها إلا وفق أحكام المواد 11 و12 و13 من القانون 112-12.'],
+  ['تحرير الحصص', 'يحرر رأس المال المكتتب نقدا لدى مؤسسة بنكية مقابل شهادة، أو عينا بعد تقييم الحصص العينية من طرف خبير.'],
+  ['الانخراط', 'الانخراط حر ومفتوح لكل شخص طبيعي أو اعتباري تتوفر فيه الشروط القانونية ويقبل أحكام هذا النظام الأساسي.'],
+  ['حقوق وواجبات الأعضاء', 'لكل عضو صوت واحد مهما كان عدد حصصه، ويلتزم بالمشاركة في نشاط التعاونية واحترام قرارات أجهزتها.'],
+  ['الاستقالة والفصل', 'يفقد العضو صفته بالاستقالة أو الوفاة أو الفصل بقرار من الجمع العام، وفق الشروط المنصوص عليها قانونا.'],
+  ['الجمع العام', 'الجمع العام هو أعلى هيئة تقريرية في التعاونية، ويتكون من جميع الأعضاء.'],
+  ['استدعاء الجمع العام', 'يستدعى الجمع العام برسالة مضمونة أو بأي وسيلة تثبت التوصل، خمسة عشر يوما على الأقل قبل تاريخ انعقاده.'],
+  ['النصاب', 'لا يصح انعقاد الجمع العام العادي إلا بحضور نصف الأعضاء على الأقل، وإلا استدعي لجمع ثان يصح بمن حضر.'],
+  ['مداولات الجمع العام', 'تتخذ قرارات الجمع العام بأغلبية أصوات الأعضاء الحاضرين أو الممثلين، ما لم ينص القانون على أغلبية خاصة.'],
+  ['مجلس الإدارة', 'يسير التعاونية مجلس إدارة يتكون من أعضاء منتخبين من طرف الجمع العام لمدة ثلاث سنوات قابلة للتجديد.'],
+  ['الرئيس', 'يمثل الرئيس التعاونية أمام الغير، ويسهر على تنفيذ قرارات الجمع العام ومجلس الإدارة.'],
+  ['المسير', 'يعين مجلس الإدارة مسيرا يتولى التسيير اليومي للتعاونية تحت مراقبته.'],
+  ['مراقب الحسابات', 'يعين الجمع العام مراقبا للحسابات يتولى مراقبة حسابات التعاونية وتقديم تقرير سنوي.'],
+  ['السنة المالية', 'تبدأ السنة المالية في فاتح يناير وتنتهي في 31 دجنبر من كل سنة.'],
+  ['الحسابات السنوية', 'يعد مجلس الإدارة الحسابات السنوية والجرد، ويعرضها على الجمع العام للمصادقة داخل ستة أشهر من اختتام السنة المالية.'],
+  ['سندات الحصص', 'تسلم لكل عضو سندات حصص تثبت عدد الحصص المكتتبة والمحررة، طبقا للمادة 21 من القانون 112-12.'],
+  ['الاحتياطي القانوني', 'يقتطع 10% من الفائض الصافي السنوي لفائدة الاحتياطي القانوني إلى أن يساوي رأس مال التعاونية.'],
+  ['توزيع الفائض', 'يوزع الفائض الصافي وفق أحكام المادة 69 من القانون 112-12: الاحتياطي القانوني، رسم التنمية التعاونية (2%)، الاحتياطيات الخاصة، التكوين، إعادة الاستثمار، ثم المنح حسب العمليات المنجزة.'],
+  ['صندوق التكوين', 'يخصص جزء من الفائض لتكوين الأعضاء وتحسين قدراتهم، بما فيها التكوين في الجودة والشهادات.'],
+  ['مراقبة مكتب تنمية التعاون', 'تخضع التعاونية لمراقبة مكتب تنمية التعاون، وتلتزم بموافاته بالتقارير والوثائق القانونية.'],
+  ['الاندماج', 'يجوز للتعاونية الاندماج مع تعاونية أخرى أو أكثر بقرار من الجمع العام الاستثنائي.'],
+  ['الحل', 'تحل التعاونية بقرار من الجمع العام الاستثنائي أو بحكم قضائي، وفق أحكام القانون.'],
+  ['التصفية', 'عند الحل، يعين الجمع العام مصفيا أو أكثر يتولون تصفية أموال التعاونية وتوزيع صافي الأصول.'],
+  ['أحكام عامة', 'كل ما لم ينص عليه هذا النظام الأساسي يخضع لأحكام القانون رقم 112-12 والنصوص التنظيمية المتخذة لتطبيقه.'],
+];
+function printStatuts(type) {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const sv = tn.share_value || 100;
+  const cap = Daira.capitalSubscribed();
+  const titles = { general: 'النظام الأساسي النموذجي', housing: 'النظام الأساسي — تعاونية سكن', harmon: 'ملاءمة النظام الأساسي وفق القانون 112-12' };
+  const html = `
+  <div class="doc-head"><h1>${titles[type] || titles.general}</h1>
+    <div class="sub">${esc(tn.name || '')} — ${esc(tn.name_ar || '')} · ${esc(tn.region || '')}${tn.province ? ' · ' + esc(tn.province) : ''}</div>
+    <div class="sub">القانون رقم 112-12 · الظهير الشريف 1.14.189 (21 نونبر 2014)${type === 'harmon' ? ' · الجمع العام الاستثنائي للملاءمة' : ''}</div></div>
+  <table>
+    <tr><th>التسمية</th><td>${esc(tn.name_ar || tn.name || '—')}</td></tr>
+    <tr><th>المقر</th><td>${esc(tn.region || '—')}</td></tr>
+    <tr><th>القطاع / الصنف</th><td>${esc(tn.sector || '—')} · ${tn.category ? 'صنف ' + esc(tn.category) : '—'}</td></tr>
+    <tr><th>رأس المال المكتتب</th><td>${fmtM(cap)} (${fmtM(sv)} / حصة)</td></tr>
+  </table>
+  ${STATUTS_ARTICLES.map(([ti, body], i) => `<h2>المادة ${i + 1} — ${ti}</h2><p>${body}</p>`).join('')}
+  <div class="sig"><div>توقيع الرئيس<br><br><br></div><div>توقيع الكاتب العام<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_statuts'), html);
+}
+function printSubs() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const ms = Daira.scoped('members');
+  const sv = tn.share_value || 100;
+  const total = ms.reduce((s, m) => s + (Number(m.shares_paid) || 0) * sv, 0);
+  const html = `
+  <div class="doc-head"><h1>لائحة الأعضاء المكتتبين</h1>
+    <div class="sub">${esc(tn.name_ar || tn.name || '')} · المادة 11 — القانون 112-12</div></div>
+  <table><tr><th>#</th><th>الاسم الكامل</th><th>بطاقة التعريف</th><th>حصص مكتتبة</th><th>حصص محررة</th><th>المبلغ (درهم)</th></tr>
+  ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${m.shares || 0}</td><td>${m.shares_paid || 0}</td><td>${fmtM((m.shares_paid || 0) * sv)}</td></tr>`).join('')}</table>
+  <div class="row2"><b>مجموع رأس المال المحرر: ${fmtM(total)}</b><span>عدد الأعضاء: ${ms.length}</span></div>
+  <p>${esc(t('act_certify'))}.</p>
+  <div class="sig"><div>الرئيس<br><br><br></div><div>المسير<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_subs'), html);
+}
+function printShareCert(memberId) {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const m = Daira.get('members', memberId);
+  if (!m) return;
+  const sv = tn.share_value || 100;
+  const html = `
+  <div class="doc-head"><h1>سند الحصص — المادة 21</h1>
+    <div class="sub">${esc(tn.name_ar || tn.name || '')} · ${esc(tn.region || '')}</div></div>
+  <table>
+    <tr><th>صاحب السند</th><td>${esc(m.name)} ${esc(m.firstname || '')}</td></tr>
+    <tr><th>بطاقة التعريف</th><td>${esc(m.cin || '—')}</td></tr>
+    <tr><th>رقم العضو</th><td>${esc(m.code)}</td></tr>
+    <tr><th>عدد الحصص المكتتبة</th><td>${m.shares || 0}</td></tr>
+    <tr><th>عدد الحصص المحررة</th><td>${m.shares_paid || 0}</td></tr>
+    <tr><th>القيمة الاسمية للحصة</th><td>${fmtM(sv)}</td></tr>
+    <tr><th>القيمة الإجمالية</th><td><b>${fmtM((m.shares_paid || 0) * sv)}</b></td></tr>
+    <tr><th>تاريخ الانخراط</th><td>${fmtD(m.joined_at)}</td></tr>
+  </table>
+  <p class="muted">هذا السند غير قابل للتداول إلا وفق أحكام المواد 11 و12 و13 من القانون 112-12.</p>
+  <div class="sig"><div>الرئيس<br><br><br></div><div>ختم التعاونية<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_share_cert'), html);
+}
+function greffeBody(kind, extra) {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const ms = Daira.scoped('members');
+  const bureau = ms.filter(m => m.fonction && m.fonction !== 'member');
+  const titles = { imm: 'طلب التسجيل بالسجل المحلي للتعاونيات', mod: 'التقييد المعدل', rad: 'طلب التشطيب من السجل المحلي' };
+  return `
+  <div class="doc-head"><h1>${titles[kind]}</h1>
+    <div class="sub">المملكة المغربية — وزارة العدل · المحكمة الابتدائية · كتابة الضبط — المرسوم 2.15.617 / القرار 1369.16</div></div>
+  <p>إلى السيد(ة) رئيس(ة) كتابة الضبط بالمحكمة الابتدائية،</p>
+  <table>
+    <tr><th>التسمية</th><td>${esc(tn.name_ar || tn.name || '—')}</td></tr>
+    <tr><th>المقر</th><td>${esc(tn.region || '—')}${tn.province ? ' · ' + esc(tn.province) : ''}</td></tr>
+    <tr><th>القطاع / الصنف</th><td>${esc(tn.sector || '—')} · ${tn.category ? 'صنف ' + esc(tn.category) : '—'}</td></tr>
+    <tr><th>شهادة التسمية (ODCO)</th><td>${tn.denom_cert_date ? fmtD(tn.denom_cert_date) : '—'}</td></tr>
+    <tr><th>رأس المال</th><td>${fmtM(Daira.capitalSubscribed())}</td></tr>
+    ${kind === 'mod' ? `<tr><th>التعديل</th><td>${esc(extra || '—')}</td></tr>` : ''}
+    ${kind === 'rad' ? `<tr><th>سبب التشطيب</th><td>${esc(extra || '—')}</td></tr>` : ''}
+  </table>
+  <h2>أعضاء أجهزة الإدارة والتسيير</h2>
+  <table><tr><th>الاسم الكامل</th><th>الجنسية</th><th>وثيقة التعريف</th><th>الصفة</th><th>العنوان</th></tr>
+  ${bureau.map(m => `<tr><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>مغربية</td><td>${esc(m.cin || '—')}</td><td>${esc(t('fo_' + m.fonction))}</td><td>${esc(m.village || '—')}</td></tr>`).join('') || `<tr><td colspan="5" class="muted">—</td></tr>`}</table>
+  <h2>الوثائق المرفقة (3 نسخ)</h2>
+  <p>النظام الأساسي موقع · لائحة الأعضاء · نسخ بطائق التعريف · الشهادة البنكية · وصل السلطة الإدارية · شهادة التسمية · محضر تقييم الحصص العينية.</p>
+  <div class="sig"><div>توقيع المودع<br><br><br></div><div>ختم كتابة الضبط<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+}
+function printGreffe(kind, extra) { printDoc(t('act_greffe'), greffeBody(kind, extra)); }
+function printConvocation(asmId) {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const a = Daira.get('assemblies', asmId);
+  if (!a) return;
+  const html = `
+  <div class="doc-head"><h1>استدعاء الجمع العام</h1>
+    <div class="sub">${esc(tn.name_ar || tn.name || '')}</div></div>
+  <p>إلى السيد(ة) العضو(ة)،</p>
+  <p>يشرفني أن أدعوكم لحضور ${esc(a.title)} المزمع انعقاده يوم <b>${fmtD(a.held_at)}</b> بمقر التعاونية (${esc(tn.region || '')}).</p>
+  <h2>جدول الأعمال</h2>
+  <ol>${(a.decisions || []).map(d => `<li>${esc(d)}</li>`).join('') || '<li>المصادقة على التقرير السنوي</li>'}</ol>
+  <p class="muted">في حالة تعذر الحضور، يمكن توكيل عضو آخر بموجب وكالة مكتوبة (المادة 39).</p>
+  <div class="sig"><div>الرئيس<br><br><br></div><div>ختم التعاونية<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_ag_conv'), html);
+}
+function printAttendance(asmId) {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const a = Daira.get('assemblies', asmId);
+  const ms = Daira.scoped('members');
+  const att = new Set(a ? (a.attendees || []) : []);
+  const html = `
+  <div class="doc-head"><h1>ورقة الحضور — المادة 45</h1>
+    <div class="sub">${esc(tn.name_ar || tn.name || '')} · ${a ? esc(a.title) + ' — ' + fmtD(a.held_at) : ''}</div></div>
+  <table><tr><th>#</th><th>الاسم الكامل</th><th>بطاقة التعريف</th><th>الحضور</th><th>التوقيع</th></tr>
+  ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${att.has(m.name) ? 'حاضر' : 'غائب'}</td><td></td></tr>`).join('')}</table>
+  <div class="row2"><span>الحاضرون: ${att.size} / ${ms.length}</span><span>الوكالات: ${Daira.scoped('proxies').length}</span></div>
+  <div class="sig"><div>الرئيس<br><br><br></div><div>الكاتب العام<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_ag_att'), html);
+}
+function printProxyForm() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const px = Daira.scoped('proxies');
+  const html = `
+  <div class="doc-head"><h1>وكالة — المادة 39</h1>
+    <div class="sub">${esc(tn.name_ar || tn.name || '')}</div></div>
+  <p>أنا الموقع(ة) أسفله، عضو(ة) بالتعاونية، أوكل بموجب هذه الوكالة السيد(ة) المذكور(ة) أدناه لتمثيلي والتصويت باسمي في الجمع العام.</p>
+  <table><tr><th>الموكل(ة)</th><th>الوكيل(ة)</th><th>التاريخ</th></tr>
+  ${px.map(p => `<tr><td>${esc(p.member_name)}</td><td>${esc(p.proxy_to)}</td><td>${fmtD(p.date)}</td></tr>`).join('') || `<tr><td colspan="3" class="muted">—</td></tr>`}</table>
+  <div class="sig"><div>توقيع الموكل(ة)<br><br><br></div><div>توقيع الوكيل(ة)<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_ag_proxy'), html);
+}
+function printRegister() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const ms = Daira.scoped('members');
+  const sv = tn.share_value || 100;
+  const html = `
+  <div class="doc-head"><h1>سجل الأعضاء — المادتان 17 و97</h1>
+    <div class="sub">${esc(tn.name_ar || tn.name || '')} · القانون 112-12</div></div>
+  <table><tr><th>#</th><th>الاسم الكامل</th><th>بطاقة التعريف</th><th>الهاتف</th><th>الصفة</th><th>حصص</th><th>تاريخ الانخراط</th><th>الحالة</th></tr>
+  ${ms.map(m => `<tr><td>${esc(m.code)}</td><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>${esc(m.cin || '—')}</td><td>${esc(m.phone || '—')}</td><td>${m.fonction && m.fonction !== 'member' ? esc(t('fo_' + m.fonction)) : '—'}</td><td>${m.shares || 0}</td><td>${fmtD(m.joined_at)}</td><td>${esc(m.status)}</td></tr>`).join('')}</table>
+  <p class="muted">يسجل في هذا السجل كل انخراط جديد، كل تفويت للحصص، وكل خروج من التعاونية، مع تاريخه.</p>
+  <div class="sig"><div>الرئيس<br><br><br></div><div>ختم التعاونية<br><br><br></div></div>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+  printDoc(t('act_register'), html);
 }
 
 /* ---------------- stock & POS ---------------- */
@@ -851,6 +1498,11 @@ function vPOS() {
     return `<div class="pos-item" data-lot="${l.id}"><div style="font-size:1.8rem">🫙</div><b>${esc(l.product_name)}</b><div class="pr">${p?p.sale_price:0} MAD</div><div class="muted">${Math.round(l.qty_available)} ${esc(l.unit)}</div></div>`;}).join('')}</div>
   <div class="card" style="margin-top:.8rem"><h2 style="margin-top:0">🧾</h2><div id="cart"></div>
   <div class="row between" style="font-size:1.2rem;font-weight:800"><span>${esc(t('s_total'))}</span><span id="cartTot">0 MAD</span></div>
+  <label class="f" style="margin-top:.6rem">${esc(t('fin_kind'))}<select id="cartCh">
+    <option value="POS">${esc(t('ch_pos'))}</option><option value="local">${esc(t('ch_local'))}</option>
+    <option value="fair">${esc(t('ch_fair'))}</option><option value="shop">${esc(t('ch_shop'))}</option>
+    <option value="social">${esc(t('ch_social'))}</option><option value="ecom">${esc(t('ch_ecom'))}</option>
+    <option value="b2b">${esc(t('ch_b2b'))}</option></select></label>
   <div class="grid c2" style="margin-top:.6rem">
     <button class="btn ghost" id="cartClear">🗑️</button>
     <button class="btn" id="cartPay">💵 ${esc(t('s_pay_cash'))}</button></div></div>`;
@@ -883,7 +1535,7 @@ function bindPOS(V) {
     const items = Object.keys(CART).map(id => ({ lotId: id, qty: CART[id] }));
     if (!items.length) { toast(t('s_empty'), true); return; }
     try {
-      const { sale, duplicate } = Daira.createSale({ items, channel: 'POS', payment: 'CASH',
+      const { sale, duplicate } = Daira.createSale({ items, channel: ($('#cartCh') || {}).value || 'POS', payment: 'CASH',
         idempotencyKey: 'pos_' + Date.now() });
       Object.keys(CART).forEach(k=>delete CART[k]);
       toast('✅ ' + t('s_sold') + ' — ' + sale.sale_code + (duplicate?' (dup)':'') + ' · ' + sale.total + ' MAD');
@@ -908,11 +1560,21 @@ function bindInv(V) {
   });
 }
 function vSalesList() {
-  return [...Daira.scoped('sales')].reverse().map(s=>`<div class="card" style="padding:.7rem">
-    <div class="row between"><b>${esc(s.sale_code)}</b><span class="badge ${s.status==='paid'?'ok':'warn'}">${esc(s.status)}</span></div>
-    <div class="muted">${esc(s.channel)} · ${esc(s.payment)} · ${fmtD(s.created_at)} · ${esc(s.created_by)}</div>
-    ${s.items.map(i=>`<div>· ${i.qty}× ${esc(i.product_name)} — ${i.line_total} MAD</div>`).join('')}
-    <div class="row between" style="font-weight:800"><span>${esc(t('s_total'))}</span><span>${s.total} MAD</span></div></div>`).join('') || `<p class="muted">—</p>`;
+  const sales = [...Daira.scoped('sales')].reverse();
+  const chLabel = c => ({ POS: t('ch_pos'), local: t('ch_local'), fair: t('ch_fair'), shop: t('ch_shop'), social: t('ch_social'), ecom: t('ch_ecom'), b2b: t('ch_b2b') }[c] || c);
+  const byCh = {};
+  sales.forEach(s => { byCh[s.channel] = (byCh[s.channel] || 0) + s.total; });
+  const badges = Object.entries(byCh).map(([c, tot]) =>
+    '<span class="badge info" style="margin:.2rem">' + esc(chLabel(c)) + ': <b>' + fmtM(tot) + '</b></span>').join('') || '<span class="muted">—</span>';
+  const cards = sales.map(s => {
+    const items = s.items.map(i => '<div>· ' + i.qty + '× ' + esc(i.product_name) + ' — ' + i.line_total + ' MAD</div>').join('');
+    return '<div class="card" style="padding:.7rem">'
+      + '<div class="row between"><b>' + esc(s.sale_code) + '</b><span class="badge ' + (s.status === 'paid' ? 'ok' : 'warn') + '">' + esc(s.status) + '</span></div>'
+      + '<div class="muted">' + esc(chLabel(s.channel)) + ' · ' + esc(s.payment) + ' · ' + fmtD(s.created_at) + ' · ' + esc(s.created_by) + '</div>'
+      + items
+      + '<div class="row between" style="font-weight:800"><span>' + esc(t('s_total')) + '</span><span>' + s.total + ' MAD</span></div></div>';
+  }).join('') || '<p class="muted">—</p>';
+  return '<div class="card"><div class="row" style="flex-wrap:wrap">' + badges + '</div></div>' + cards;
 }
 
 /* ---------------- certifications ---------------- */
@@ -1082,7 +1744,8 @@ function vGovMembers() {
     <div class="grid c2"><label class="f">${esc(t('gm_gender'))}<select id="gm_g"><option value="f">${esc(t('gender_f'))}</option><option value="m">${esc(t('gender_m'))}</option></select></label>
     <label class="f">${esc(t('gm_fonction'))}<select id="gm_f">${FONCTIONS.map(f=>`<option value="${f}">${esc(t('fo_'+f))}</option>`).join('')}</select></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_shares'))}<input id="gm_sh" type="number" value="1" min="0"></label>
-    <label class="f">${esc(t('gm_joindate'))}<input id="gm_jd" type="date" value="${new Date().toISOString().slice(0,10)}"></label></div>
+    <label class="f">${esc(t('act_shares_paid'))}<input id="gm_sp" type="number" value="1" min="0"></label></div>
+    <div class="grid c2"><label class="f">${esc(t('gm_joindate'))}<input id="gm_jd" type="date" value="${new Date().toISOString().slice(0,10)}"></label></div>
     <div class="grid c2"><label class="f">${esc(t('gm_status'))}<select id="gm_st"><option value="active">${esc(t('st_active'))}</option><option value="pending">${esc(t('st_pending'))}</option><option value="left">${esc(t('st_left'))}</option></select></label></div>
     <button class="btn" id="gm_go">${esc(t('save'))}</button></div>`;
 }
@@ -1245,11 +1908,16 @@ function printOdco() {
 function bindGov(V, tab) {
   if (tab === 'members') $('#gm_go').onclick = () => {
     try { Daira.requirePerm('member.create');
+      const cin = $('#gm_cin').value.trim();
+      if (cin && !isCIN(cin)) { toast(t('v_cin'), true); return; }
+      const phone = $('#gm_ph').value.trim();
+      if (phone && !isPhoneMA(phone)) { toast(t('v_phone'), true); return; }
       const ms = Daira.scoped('members');
       Daira.put('members', { id: 'mbr_' + Date.now().toString(36), code: 'MBR-' + String(ms.length+1).padStart(3,'0'),
         name: $('#gm_n').value.trim(), firstname: $('#gm_fn').value.trim(),
         cin: $('#gm_cin').value.trim(), phone: $('#gm_ph').value.trim(),
         gender: $('#gm_g').value, fonction: $('#gm_f').value, shares: Number($('#gm_sh').value) || 0,
+        shares_paid: Number($('#gm_sp').value) || 0,
         joined_at: new Date($('#gm_jd').value || Date.now()).toISOString(),
         status: $('#gm_st').value });
       toast('✅'); render();
@@ -1358,54 +2026,19 @@ function vDividends(V) {
 
 /* ---------------- docs ---------------- */
 function vDocs(V) {
-  const ents = [
-    ['tenants', 'pk: id', 'name, region, sector, branding{primary}, settings{locale,currency}'],
-    ['users', 'pk: id · fk: tenant_id', 'name, phone, role ∈ {super_admin, manager, supervisor, member}'],
-    ['members', 'pk: id · fk: tenant_id', 'code, name, village, plot_ref, status'],
-    ['materials', 'pk: id · fk: tenant_id', 'name, unit, base_price, grades[]'],
-    ['raw_batches', 'pk: id · fk: tenant_id, member_id, material_id', 'batch_code, qty, grade, quality{moisture,acidity}, unit_price, total_credit, qty_remaining, status'],
-    ['recipes', 'pk: id · fk: tenant_id', 'inputs[{material_id, qty_per_unit}], outputs[{product_id, per_input_unit}], loss_pct, checkpoints[]'],
-    ['products', 'pk: id · fk: tenant_id', 'name, sku, unit, sale_price, components[] (packaging BOM)'],
-    ['runs', 'pk: id · fk: tenant_id, recipe_id', 'run_code, inputs[{raw_batch_id,qty}], total_input_qty, loss_pct, outputs[{lot_id,qty}]'],
-    ['finished_lots', 'pk: id · fk: tenant_id, product_id, run_id', 'lot_code, qty_produced, qty_available, source_batches[], source_members[]'],
-    ['inv_ledger', 'append-only · fk: tenant_id, lot_id', 'change, reason ∈ {production,sale,adjustment}, ref, actor'],
-    ['member_ledger', 'append-only · fk: tenant_id, member_id', 'kind ∈ {CREDIT,PAYOUT,DIVIDEND}, amount, ref'],
-    ['certifications', 'pk: id · fk: tenant_id', 'type ∈ {ONSSA,AOP,IGP,BIO,FAIR}, ref_number, expires_at, status'],
-    ['sales', 'pk: id · fk: tenant_id', 'sale_code, channel, payment, items[{lot_id,qty,price}], total, idempotency_key, synced'],
-    ['assemblies', 'pk: id · fk: tenant_id', 'type ∈ {AG,AGE,CA}, held_at, attendees[], decisions[], pv_ref, status'],
-    ['votes', 'pk: id · fk: tenant_id, assembly_id', 'question, results{yes,no,abstain}, status'],
-    ['dividend_campaigns', 'pk: id · fk: tenant_id', 'season, surplus, allocations[{member_id,points,share_pct,amount}], status'],
-  ];
-  const api = [
-    ['POST', '/api/v1/tenants', 'Provisioning (super_admin)'],
-    ['GET', '/api/v1/tenants', 'Liste espaces (super_admin)'],
-    ['POST', '/api/v1/:tenant/members', 'Créer membre'],
-    ['POST', '/api/v1/:tenant/intake', 'Réception apport → lot tracé + crédit membre'],
-    ['POST', '/api/v1/:tenant/recipes', 'Définir recette / BOM'],
-    ['POST', '/api/v1/:tenant/runs', 'Lancer transformation (moteur de rendement)'],
-    ['GET', '/api/v1/:tenant/lots/:code', 'Traçabilité lot'],
-    ['POST', '/api/v1/:tenant/sales', 'Vente (idempotente, anti-survente)'],
-    ['GET', '/api/v1/:tenant/inventory', 'État stock temps réel'],
-    ['POST', '/api/v1/:tenant/certifications', 'Ajouter certificat'],
-    ['GET', '/api/v1/:tenant/passport/:lotCode', 'Passeport produit public (QR)'],
-    ['POST', '/api/v1/:tenant/assemblies', 'Créer AG / PV'],
-    ['POST', '/api/v1/:tenant/votes', 'Ouvrir vote'],
-    ['POST', '/api/v1/:tenant/votes/:id/cast', 'Voter'],
-    ['POST', '/api/v1/:tenant/dividends', 'Calculer ristournes'],
-    ['POST', '/api/v1/:tenant/dividends/:id/confirm', 'Confirmer & créditer'],
-  ];
-  V.innerHTML = `<h1>📚 ${esc(t('doc_t'))}</h1>
-  <div class="card"><h2 style="margin-top:0">🏗️ ${esc(t('doc_arch'))}</h2>
-    <p class="muted">Multi-tenant SaaS · isolation <code>tenant_id</code> (RLS en production) · RBAC 4 rôles ·
-    moteur de transformation (rendement − pertes) · grand livre d’inventaire append-only ·
-    ventes idempotentes anti-survente · caisse offline-first (file de synchro) · QR passeport public.</p>
-    <p class="muted">Démo statique : <code>domain.js</code> = logique métier · <code>localStorage</code> namespacé par tenant =
-    isolation ligne. Production : même domaine derrière <code>/api/v1/:tenant/…</code> (Postgres + RLS).</p></div>
-  <h2>🗄️ ${esc(t('doc_model'))}</h2>
-  ${ents.map(([n,k,f])=>`<div class="doc-ent"><b>${n}</b><br><span class="pk">${esc(k)}</span><br><span class="muted">${esc(f)}</span></div>`).join('')}
-  <h2>🔌 ${esc(t('doc_api'))}</h2>
-  <div class="card"><table>${api.map(([m,p,d])=>`<tr><td><code>${m}</code></td><td><code>${esc(p)}</code></td><td class="muted">${esc(d)}</td></tr>`).join('')}</table>
-  <p class="muted">Auth: JWT · tenant résolu via sous-domaine <code>{code}.daira.ma</code> ou header <code>X-Tenant-ID</code>. Version complète : <code>docs/API-SPEC.md</code>.</p></div>`;
+  const guides = [['doc_g1','doc_g1_d'],['doc_g2','doc_g2_d'],['doc_g3','doc_g3_d'],['doc_g4','doc_g4_d']];
+  V.innerHTML = `<h1>📚 ${esc(t('docs_guide_t'))}</h1>
+  <p class="muted">${esc(t('docs_guide_d'))}</p>
+  ${guides.map(([h, d]) => `<div class="card"><h2 style="margin-top:0">${esc(t(h))}</h2><p>${esc(t(d))}</p></div>`).join('')}
+  <div class="card"><h2 style="margin-top:0">📥 ${esc(t('doc_templates'))}</h2>
+    <div class="row" style="flex-wrap:wrap">
+      <a class="btn sm" href="#/actes/denom" style="text-decoration:none">📝 ${esc(t('act_denom'))}</a>
+      <a class="btn sm" href="#/actes/statuts" style="text-decoration:none">📜 ${esc(t('act_statuts'))}</a>
+      <a class="btn sm" href="#/actes/subs" style="text-decoration:none">📋 ${esc(t('act_subs'))}</a>
+      <a class="btn sm" href="#/actes/greffe" style="text-decoration:none">🏛️ ${esc(t('act_greffe'))}</a>
+      <a class="btn sm" href="#/actes/ag" style="text-decoration:none">👥 ${esc(t('act_ag'))}</a>
+      <a class="btn sm" href="#/actes/register" style="text-decoration:none">📖 ${esc(t('act_register'))}</a>
+    </div></div>`;
 }
 
 /* ---------------- settings ---------------- */

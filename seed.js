@@ -23,6 +23,10 @@ function dairaSeed() {
       if (tn.legal_docs === undefined) tn.legal_docs = {};
     });
     Object.values(DB.members).forEach(m => { if (m.fonction === undefined) m.fonction = ''; });
+    // migration 3 (Pillar 1): new collections for DBs seeded before finance/ops existed
+    ['purchaseOrders','packaging','financeOps','equipment','loans','grants','budgets','proxies']
+      .forEach(c => { if (DB[c] === undefined) DB[c] = {}; });
+    Object.values(DB.members).forEach(m => { if (m.shares_paid === undefined) m.shares_paid = m.shares || 0; });
     Daira.save();
   } catch (e) {}
   if (DB.tenants && Object.keys(DB.tenants).length) return; // already seeded
@@ -164,6 +168,54 @@ function dairaSeed() {
   put('votes', { id: uid('vot'), assembly_id: asmId, question: 'Affecter 60% de l’excédent aux ristournes membres ?',
     question_ar: 'تخصيص 60٪ من الفائض لمنح الأعضاء؟',
     results: { yes: 8, no: 1, abstain: 0 }, status: 'closed', closed_at: year + '-10-05T12:00:00Z' });
+
+  // --- finance & operations (Pillar 1) --------------------------------------
+  // packaging stock
+  [['Flacon verre 50ml', 'pièce', 320, 50, 1.8], ['Flacon verre 100ml', 'pièce', 180, 50, 2.4],
+   ['Bouchon + capsule', 'pièce', 500, 100, 0.6], ['Étiquette FR/AR', 'pièce', 900, 200, 0.35],
+   ['Carton d’expédition', 'pièce', 120, 30, 4.5], ['Pot miel 500g', 'pièce', 90, 30, 3.2]
+  ].forEach(([name, unit, stock, min_stock, unit_cost]) =>
+    put('packaging', { id: uid('pkg'), name, unit, stock, min_stock, unit_cost }));
+  // purchase orders
+  put('purchaseOrders', { id: uid('po'), po_code: 'BC-2026-001', vendor_name: 'Fournisseur Emballages Atlas',
+    vendor_type: 'supplier', material_id: '', qty: 500, unit: 'pièce', unit_price: 1.8,
+    total: 900, status: 'received', date: year + '-02-10T00:00:00Z', note: 'Flacons verre 50ml' });
+  put('purchaseOrders', { id: uid('po'), po_code: 'BC-2026-002', vendor_name: 'Aïcha Amzil',
+    vendor_type: 'member', member_id: memberIds[0], material_id: matArgan, qty: 120, unit: 'kg',
+    unit_price: 22, total: 2640, status: 'received', date: year + '-03-05T00:00:00Z', note: 'Fruit d’argan brut' });
+  // finance journal (caisse / banque / OD)
+  [['cash','in','Vente marché Tamanar', 2450, year + '-06-14'], ['cash','out','Transport souk', 180, year + '-06-14'],
+   ['cash','in','Vente foire Agadir', 6800, year + '-05-20'], ['bank','in','Virement client Marjane', 12500, year + '-05-25'],
+   ['bank','out','Achat emballages (BC-2026-001)', 900, year + '-02-10'], ['bank','out','Électricité atelier', 640, year + '-06-01'],
+   ['od','in','Subvention INDH reçue', 30000, year + '-03-15'], ['od','out','Dotation amortissement presse', 2400, year + '-12-31'],
+   ['cash','out','تعويضات التسيير — bureau', 1200, year + '-06-30'], ['bank','out','Remboursement crédit (échéance)', 1850, year + '-06-15']
+  ].forEach(([kind, type, label, amount, date], i) =>
+    put('financeOps', { id: uid('fin'), kind, type, category: type === 'in' ? 'recette' : 'dépense',
+      label, amount, date: date + 'T00:00:00Z', ref: 'JNL-' + year + '-' + String(i + 1).padStart(3, '0') }));
+  // equipment & depreciation
+  [['Presse à huile manuelle', year - 2 + '-01-20', 24000, 10], ['Concasseur argan', year - 2 + '-01-20', 15000, 10],
+   ['Réfrigérateur stockage', year - 1 + '-06-10', 8000, 20], ['Balance électronique', year + '-01-05', 1200, 20]
+  ].forEach(([name, acquired_at, value, dep_rate]) =>
+    put('equipment', { id: uid('eqp'), name, acquired_at: acquired_at + 'T00:00:00Z', value, dep_rate, status: 'actif' }));
+  // loans & grants
+  put('loans', { id: uid('loa'), lender: 'Crédit Agricole du Maroc — Tamwil El Fellah',
+    amount: 60000, rate: 5.5, start_date: year - 1 + '-03-01', duration_months: 36,
+    monthly_payment: 1850, remaining: 42000, status: 'en cours' });
+  put('grants', { id: uid('grn'), program: 'INDH — Appui aux coopératives féminines',
+    source: 'INDH', amount_requested: 50000, amount_received: 30000, status: 'received',
+    date: year + '-03-15', note: 'Équipement atelier' });
+  put('grants', { id: uid('grn'), program: 'Génération Green — Plantation argan',
+    source: 'Ministère de l’Agriculture', amount_requested: 80000, amount_received: 0,
+    status: 'applied', date: year + '-05-02', note: 'En attente de décision' });
+  // budget prévisionnel
+  [['Ventes huile d’argan', 'rev', 180000], ['Ventes miel', 'rev', 45000], ['Subventions', 'rev', 30000],
+   ['Achats matières premières', 'exp', 60000], ['Emballages', 'exp', 12000], ['Transport', 'exp', 9000],
+   ['Énergie & maintenance', 'exp', 8000], ['تعويضات التسيير', 'exp', 14400], ['Formation membres', 'exp', 6000]
+  ].forEach(([label, kind, planned]) =>
+    put('budgets', { id: uid('bud'), year, label, kind, planned }));
+  // proxy (Art. 39)
+  put('proxies', { id: uid('prx'), assembly_id: asmId, member_id: memberIds[3],
+    member_name: memberNames[3][0], proxy_to: memberNames[0][0], date: year + '-10-01T00:00:00Z' });
 
   // --- extra users (roles demo) ----------------------------------------------
   const supId = uid('usr');
