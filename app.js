@@ -2083,7 +2083,8 @@ function vSettings(V) {
   try { dairaSeed(); } catch (e) { console.warn('seed:', e); }
   buildLangSel();
   const s = Daira.DB().session;
-  if (s.tenantId) { const tn = Daira.DB().tenants[s.tenantId]; if (tn && tn.settings && tn.settings.locale) LANG = tn.settings.locale; }
+  // Tenant locale is only a default: an explicit user choice (daira_lang) always wins.
+  if (!localStorage.getItem('daira_lang') && s.tenantId) { const tn = Daira.DB().tenants[s.tenantId]; if (tn && tn.settings && tn.settings.locale) LANG = tn.settings.locale; }
   const meta = LANGS.find(x => x.code === LANG) || LANGS[0];
   document.documentElement.lang = LANG === 'fr' ? 'fr' : (LANG === 'zgh' ? 'zgh' : 'ar');
   document.documentElement.dir = meta.dir;
