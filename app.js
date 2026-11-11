@@ -227,9 +227,12 @@ window.addEventListener('hashchange', render);
 /* ---------------- landing ---------------- */
 function vLanding(V) {
   const feats = [['f1t','f1d','🔍'],['f2t','f2d','🏭'],['f3t','f3d','🔳'],['f4t','f4d','💰'],['f5t','f5d','🏛️'],['f6t','f6d','🤝']];
+  const photos = [['argan-nuts.jpg','ph_argan_t','ph_argan_d'],['coop-women.jpg','ph_coop_t','ph_coop_d'],['olive-oil.jpg','ph_olive_t','ph_olive_d']];
   V.innerHTML = `
-  <div class="hero">
-    <div style="font-size:2.4rem;position:relative;z-index:1">🌿</div>
+  <div class="hero hero-photo">
+    <img class="hero-img" src="hero.jpg" alt="">
+    <div class="scrim"></div>
+    <div class="hero-inner hero-anim">
     <div style="position:relative;z-index:1;font-weight:800;font-size:1.05rem;opacity:.95">${esc(t('hero_brand'))}</div>
     <h1>${esc(t('hero_sub2'))}</h1>
     <p style="font-size:.95rem"><i>"${esc(t('hero_tag'))}"</i></p>
@@ -242,14 +245,22 @@ function vLanding(V) {
     <div style="position:relative;z-index:1;margin-top:1rem;display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap">
       ${LANGS.map(l=>`<button class="btn sm ${l.code===LANG?'light':'outline'}" style="width:auto" onclick="setLang('${l.code}')">${l.label}</button>`).join('')}
     </div>
+    </div>
   </div>
-  <div class="grid c2">${feats.map(([a,b,ico]) =>
-    `<div class="card feat"><span class="ico">${ico}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}</div>
-  <h2>${esc(t('how_t'))}</h2>
+  <div class="stats reveal"><div class="stat"><b>14</b><span>${esc(t('st_docs'))}</span></div><div class="stat"><b>7</b><span>${esc(t('st_actes'))}</span></div><div class="stat"><b>6</b><span>${esc(t('st_sectors'))}</span></div><div class="stat"><b>2</b><span>${esc(t('st_lang'))}</span></div></div>
+  <div class="grid c2">${feats.map(([a,b,ico],i) =>
+    `<div class="card feat" style="animation-delay:${.1+i*.07}s"><span class="ico">${ico}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}</div>
+  <h2 class="reveal">${esc(t('ph_t'))}</h2>
+  <div class="photo-grid reveal">${photos.map(([img,a,b]) =>
+    `<div class="photo-card"><img src="${img}" alt="" loading="lazy"><div class="pc-body"><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}</div>
+  <p class="muted reveal" style="font-size:.8rem;text-align:center">${esc(t('ph_credit'))}</p>
+  <h2 class="reveal">${esc(t('how_t'))}</h2>
   ${[['how_1t','how_1d'],['how_2t','how_2d'],['how_3t','how_3d']].map(([a,b],i) =>
-    `<div class="card step"><span class="n">${i+1}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}
-  <div class="card" style="text-align:center"><span class="badge ok">${esc(t('law'))}</span>
+    `<div class="card step reveal"><span class="n">${i+1}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}
+  <div class="card reveal" style="text-align:center"><span class="badge ok">${esc(t('law'))}</span>
     <p class="muted">${esc(t('made_in'))}</p></div>`;
+  const io = ('IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 }) : null;
+  V.querySelectorAll('.reveal').forEach(el => io ? io.observe(el) : el.classList.add('in'));
 }
 
 /* ---------------- login (credentials) ---------------- */
