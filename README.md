@@ -17,6 +17,14 @@ QR product passports, hybrid inventory & offline POS, governance, and patronage 
 - 🏛️ Governance: member registry, assemblies/PVs, voting sessions
 - 🤝 Patronage dividend engine (pro-rata on volume × quality)
 - 🌍 FR / العربية / الدارجة with full RTL support, mobile-first
+- 📱 **iPhone app (PWA)** — install to Home Screen, runs full-screen offline
+
+## Install on iPhone
+1. Open the live demo in **Safari**: https://khalilkassimi.github.io/daira/
+2. Tap **Share** → **Add to Home Screen** → **Add**
+3. Launch **Daira** from the home screen — it opens like a native app (no Safari chrome), with offline cache via service worker
+
+> Tip: “Add to Home Screen” only appears in Safari (not Chrome/Firefox on iOS).
 
 ## Docs
 - `DATA-MODEL.md` — multi-tenant ER data model
@@ -24,4 +32,8 @@ QR product passports, hybrid inventory & offline POS, governance, and patronage 
 - `ARCHITECTURE.md` — architecture, deployment tiers, honest limitations
 
 ## Run locally
-No build step — open `index.html` or serve the folder: `python3 -m http.server`
+No build step — serve the folder over HTTP (required for the service worker):
+```bash
+python3 -m http.server 8080
+```
+Then open http://localhost:8080 (or your machine’s LAN IP from an iPhone on the same Wi‑Fi).

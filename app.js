@@ -257,10 +257,21 @@ function vLanding(V) {
   <h2 class="reveal">${esc(t('how_t'))}</h2>
   ${[['how_1t','how_1d'],['how_2t','how_2d'],['how_3t','how_3d']].map(([a,b],i) =>
     `<div class="card step reveal"><span class="n">${i+1}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}
+  <div class="card reveal install-card">
+    <div class="row between" style="align-items:flex-start;gap:.8rem">
+      <div>
+        <b>📱 ${esc(t('install_card_t'))}</b>
+        <div class="muted" style="margin-top:.35rem">${esc(isStandalone() ? t('install_done') : t('install_card_d'))}</div>
+      </div>
+      ${isStandalone() ? '' : `<button class="btn sm" id="installHelpBtn" style="width:auto;flex-shrink:0">${esc(t('install_btn'))}</button>`}
+    </div>
+  </div>
   <div class="card reveal" style="text-align:center"><span class="badge ok">${esc(t('law'))}</span>
     <p class="muted">${esc(t('made_in'))}</p></div>`;
   const io = ('IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 }) : null;
   V.querySelectorAll('.reveal').forEach(el => io ? io.observe(el) : el.classList.add('in'));
+  const ih = $('#installHelpBtn');
+  if (ih) ih.onclick = () => showIosInstall(true);
 }
 
 /* ---------------- login (credentials) ---------------- */
@@ -2054,6 +2065,9 @@ function vDocs(V) {
 function vSettings(V) {
   V.innerHTML = `<h1>⚙️ ${esc(t('set_t'))}</h1>
   <div class="card"><label class="f">${esc(t('set_lang'))}<select id="s_l">${LANGS.map(l=>`<option value="${l.code}" ${l.code===LANG?'selected':''}>${l.label}</option>`).join('')}</select></label></div>
+  <div class="card install-card"><h2 style="margin-top:0">📱 ${esc(t('install_card_t'))}</h2>
+    <p class="muted">${esc(isStandalone() ? t('install_done') : t('install_card_d'))}</p>
+    ${isStandalone() ? '' : `<button class="btn ghost" id="s_install">${esc(t('install_btn'))}</button>`}</div>
   <div class="card"><h2 style="margin-top:0">🔑 ${esc(t('set_pin_t'))}</h2>
     <label class="f">${esc(t('set_oldpin'))}<input id="s_op" type="password"></label>
     <label class="f">${esc(t('set_newpin'))}<input id="s_np" type="password"></label>
@@ -2065,6 +2079,8 @@ function vSettings(V) {
   <div class="card"><h2 style="margin-top:0;color:var(--danger)">⚠️ ${esc(t('set_danger'))}</h2>
     <button class="btn danger" id="s_r">🧹 ${esc(t('set_reset'))}</button></div>`;
   $('#s_l').onchange = e => setLang(e.target.value);
+  const si = $('#s_install');
+  if (si) si.onclick = () => showIosInstall(true);
   $('#s_pg').onclick = () => {
     const u = Daira.currentUser();
     if (!u || Daira.hashPin($('#s_op').value) !== u.pin_hash) { toast('⛔ ' + t('login_err'), true); return; }
@@ -2086,8 +2102,55 @@ function vSettings(V) {
   $('#s_r').onclick = () => { if (confirm('OK?')) { Daira.resetDB(); location.hash = '#/'; location.reload(); } };
 }
 
+/* ---------------- iPhone / PWA install ---------------- */
+function isStandalone() {
+  return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || !!window.navigator.standalone;
+}
+function isIosDevice() {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function showIosInstall(force) {
+  const el = $('#iosInstall');
+  if (!el) return;
+  if (!force && (isStandalone() || localStorage.getItem('daira_ios_install_dismissed') === '1')) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.innerHTML = `<div class="ios-card">
+    <div class="ios-head">
+      <img src="apple-touch-icon.png" alt="Daira" width="48" height="48">
+      <div><b>${esc(t('install_t'))}</b><span class="muted" style="font-size:.85rem;display:block;margin-top:.15rem">${esc(t('install_sub'))}</span></div>
+    </div>
+    <ol class="ios-steps">
+      <li><span class="n">1</span><span>${esc(t('install_s1'))} <span class="share-ico" aria-hidden="true">⬆️</span></span></li>
+      <li><span class="n">2</span><span>${esc(t('install_s2'))}</span></li>
+      <li><span class="n">3</span><span>${esc(t('install_s3'))}</span></li>
+    </ol>
+    <div class="ios-actions">
+      <button class="btn ghost" id="iosDismiss">${esc(t('install_dismiss'))}</button>
+      <button class="btn" id="iosOk">${esc(t('install_ok'))}</button>
+    </div>
+  </div>`;
+  el.classList.remove('hidden');
+  const hide = (persist) => {
+    el.classList.add('hidden');
+    if (persist) try { localStorage.setItem('daira_ios_install_dismissed', '1'); } catch (e) {}
+  };
+  $('#iosDismiss').onclick = () => hide(true);
+  $('#iosOk').onclick = () => hide(true);
+}
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  // Only over http(s) — file:// and some previews cannot register
+  if (!/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
+}
+
 /* ---------------- boot ---------------- */
 (function boot() {
+  if (isStandalone()) document.documentElement.classList.add('standalone');
   try { dairaSeed(); } catch (e) { console.warn('seed:', e); }
   buildLangSel();
   const s = Daira.DB().session;
@@ -2099,4 +2162,9 @@ function vSettings(V) {
   buildLangSel();
   if (!location.hash) location.hash = '#/';
   render();
+  registerServiceWorker();
+  // Auto-prompt only on iPhone/iPad Safari (not already installed)
+  if (isIosDevice() && !isStandalone()) {
+    setTimeout(() => showIosInstall(false), 1800);
+  }
 })();

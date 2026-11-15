@@ -11,7 +11,7 @@ to statutory governance and patronage dividends.
 |---|---|---|
 | **v1 — Static demo** | GitHub Pages (free) | ✅ This build. `domain.js` implements the full domain logic; `localStorage` (namespaced per tenant) acts as the database; `qrcode` vendored for offline QR. **Onboarding is moderated**: cooperatives submit an access request (form → WhatsApp to the platform owner with their details); the owner approves from the platform console, which provisions the isolated tenant. **Cross-device**: localStorage is per-device, so the finish screen shows a portable request code (`DREQ1.…`, also sent in the WhatsApp message) — paste it into the console's « Importer une demande » card to approve a request submitted on another browser/device. No self-service tenant creation → the tenant base stays clean of fake cooperatives. |
 | **v2 — SaaS backend** | API + Postgres (RLS on `tenant_id`) + object storage | Spec in `API-SPEC.md`. Domain functions map 1:1 to endpoints. |
-| **v3 — Mobile offline** | Capacitor/Capacitive wrapper or PWA with background sync | POS already designed offline-first (idempotency keys + `synced` flag). |
+| **v3 — Mobile offline** | Capacitor wrapper or PWA with background sync | ✅ PWA shipped: `manifest.webmanifest` + `sw.js` + apple-touch icons. Install via Safari → Share → Add to Home Screen. POS already offline-first (idempotency keys + `synced` flag). Native App Store IPA still needs Capacitor + a Mac/Xcode build. |
 
 ## Module map (code)
 - `domain.js` — tenant guard (`scoped/get/put`), RBAC (`can/requirePerm`), `provisionTenant`,
@@ -25,6 +25,7 @@ to statutory governance and patronage dividends.
   intake (printable reception ticket + WhatsApp receipt), **catalog** (materials/products/recipes management — required before first intake/production on a new tenant), production, stock (POS/inventory/sales), certifications, QR passport (+ printable A4 poster + public `#/p/:code/:lot`),
   governance (full member registry: firstname/CIN/phone/gender/shares/status badges, assemblies with printable PV, votes, **ODCO compliance dashboard** with annual report export), dividends (individual printable slips + WhatsApp notices), docs, settings, platform console (pending requests approval, credential issuance, **data toolbox**: dated JSON backup / import / demo reset).
 - `qrcode.min.js` — vendored QR generator (no CDN dependency → works offline).
+- `manifest.webmanifest` + `sw.js` + `icons/` + `apple-touch-icon.png` — installable iPhone/Android PWA (standalone display, offline shell cache).
 
 ## Key design decisions
 1. **Tenant isolation as a code-level invariant**: every domain function runs inside `scoped()`;
