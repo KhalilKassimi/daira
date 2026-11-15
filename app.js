@@ -174,7 +174,7 @@ function waLink(phone, text) {
 
 function tenantHeader() {
   const tn = Daira.DB().tenants[Daira.activeTenantId()];
-  return tn ? { name: tn.name, name_ar: tn.name_ar, odco: tn.odco || '—', region: tn.region || '' } : { name: t('coop_default_name'), name_ar: t('coop_default_name'), odco: '—', region: '' };
+  return tn ? { name: tn.name, name_ar: tn.name_ar, region: tn.region || '' } : { name: t('coop_default_name'), name_ar: t('coop_default_name'), region: '' };
 }
 
 function waRequestLink(r) {
@@ -331,8 +331,6 @@ function obValidate(step) {
   const d = OB.data, errs = {};
   if (step === 1) {
     if (!d.name || !d.name.trim()) errs.name = t('v_required');
-    if (!d.odco || !d.odco.trim()) errs.odco = t('v_required');
-    else if (/^\d+$/.test(d.odco.trim()) && !isICE(d.odco)) errs.odco = t('v_ice');
     if (!d.sector) errs.sector = t('v_required');
     if (!d.category) errs.category = t('v_required');
     if (!d.region || !d.region.trim()) errs.region = t('v_required');
@@ -357,7 +355,6 @@ function vOnboard(V, step) {
   let body = '';
   if (OB.step === 1) body = `
     <label class="f">${esc(t('ob_name'))}<input id="o_name" value="${esc(d.name||'')}" placeholder="Coopérative …" class="${errs.name?'invalid':''}">${ferr('name')}</label>
-    <label class="f">${esc(t('ob_odco'))}<input id="o_odco" value="${esc(d.odco||'')}" placeholder="ODCO-… / ICE …" class="${errs.odco?'invalid':''}">${ferr('odco')}</label>
     <label class="f">${esc(t('ob_sector'))}<select id="o_sector" class="${errs.sector?'invalid':''}">
       <option value="">—</option>${SECTORS.map(([fr,ar])=>`<option value="${fr}" ${d.sector===fr?'selected':''}>${fr} / ${ar}</option>`).join('')}</select>${ferr('sector')}</label>
     <label class="f">${esc(t('ob_category'))}<select id="o_category" class="${errs.category?'invalid':''}">
@@ -409,7 +406,7 @@ function vOnboard(V, step) {
     </div>`:''}</div>`;
 
   const grab = () => {
-    ['name','odco','region','phone','province','purpose','denom_cert_date','adminName','cin','adminPhone','email'].forEach(k => {
+    ['name','region','phone','province','purpose','denom_cert_date','adminName','cin','adminPhone','email'].forEach(k => {
       const el = document.getElementById('o_'+k); if (el) d[k] = el.value.trim();
     });
     ['share_value','capital_liberated'].forEach(k => {
@@ -434,7 +431,7 @@ function vOnboard(V, step) {
   if (fn) fn.onclick = () => {    grab();
     const req = { id: 'req_' + Date.now().toString(36), created_at: new Date().toISOString(), status: 'pending',
       name: d.name, name_ar: d.name_ar, region: d.region, province: d.province, sector: d.sector, phone: d.phone,
-      odco: d.odco, email: d.email, cin: d.cin,
+      email: d.email, cin: d.cin,
       category: d.category, purpose: d.purpose, share_value: d.share_value,
       capital_liberated: d.capital_liberated, denom_cert_date: d.denom_cert_date,
       adminName: d.adminName, adminPhone: d.adminPhone,
@@ -617,7 +614,7 @@ function ticketHtml(b) {
   const m = Daira.DB().members[b.member_id] || {};
   return `
   <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
-    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}</div>
+    <div class="sub">${esc(h.name_ar)} · ${esc(h.region)}</div>
     <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_ticket_t'))} — ${esc(b.batch_code)}</h1></div>
   <table>
     <tr><th style="width:45%">Adhérent / المنخرط</th><td>${esc(b.member_name)} (${esc(m.code || '')})</td></tr>
@@ -1796,7 +1793,7 @@ function printPV(asmId) {
   const pct = ms.length ? Math.round(a.attendees.length / ms.length * 100) : 0;
   const html = `
   <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
-    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}</div>
+    <div class="sub">${esc(h.name_ar)} · ${esc(h.region)}</div>
     <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_pv_t'))}</h1>
     <div class="sub">${esc(a.title)} — ${esc(a.pv_ref || '')}</div></div>
   <table>
@@ -1892,7 +1889,7 @@ function printOdco() {
   const docs = tn.legal_docs || {};
   const html = `
   <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
-    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)} · ${esc(h.region)}${tn.province ? ' · ' + esc(tn.province) : ''}</div>
+    <div class="sub">${esc(h.name_ar)} · ${esc(h.region)}${tn.province ? ' · ' + esc(tn.province) : ''}</div>
     <h1 style="font-size:17px;margin-top:8px">${esc(t('odco_t'))} — ${esc(t('odco_export'))} ${y}</h1></div>
   <table>
     <tr><th style="width:55%">${esc(t('odco_category'))}</th><td>${tn.category ? 'صنف ' + esc(tn.category) : '—'}</td></tr>
@@ -1972,7 +1969,7 @@ function ficheHtml(c, a) {
   const net = Daira.round2(a.amount - legal);
   return `
   <div class="doc-head"><h1>🌿 ${esc(h.name)}</h1>
-    <div class="sub">${esc(h.name_ar)} · N° ODCO: ${esc(h.odco)}</div>
+    <div class="sub">${esc(h.name_ar)}</div>
     <h1 style="font-size:17px;margin-top:8px">${esc(t('pr_fiche_t'))} — ${esc(c.season)}</h1>
     ${c.status !== 'confirmed' ? '<div class="sub">⚠️ PROVISOIRE / مؤقت</div>' : ''}</div>
   <table>
