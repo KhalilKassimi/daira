@@ -17,13 +17,22 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{scroll-behavior:smooth}
-body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);min-height:100vh}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);min-height:100vh;min-height:100dvh;
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text}
+/* Installed iPhone / PWA: fill the screen */
+html.standalone{overscroll-behavior:none}
+html.standalone body{overscroll-behavior:none;background:var(--bg)}
 [dir="rtl"] body{letter-spacing:0}
 .hidden{display:none!important}
 
 /* ---------- top bar / nav ---------- */
 #topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:.6rem;
   padding:.65rem .9rem;background:var(--brand);color:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+html.standalone #topbar{padding-top:calc(.65rem + env(safe-area-inset-top))}
+html.standalone #topbar.hidden ~ #view{padding-top:calc(1rem + env(safe-area-inset-top))}
 .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;font-size:1.1rem;flex:1}
 .brand #brandEmoji{font-size:1.4rem}
 .top-actions{display:flex;align-items:center;gap:.5rem}
@@ -44,7 +53,7 @@ body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);min-
 .nav-link .ico{font-size:1.25rem;width:1.6rem;text-align:center}
 .nav-link.active{background:var(--brand-soft);color:var(--brand-dark)}
 #scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:55}
-#view{max-width:960px;margin:0 auto;padding:1rem .9rem 5rem}
+#view{max-width:960px;margin:0 auto;padding:1rem .9rem calc(5rem + env(safe-area-inset-bottom))}
 #foot{text-align:center;color:var(--muted);font-size:.82rem;padding:1.2rem}
 
 /* ---------- generic ---------- */
@@ -141,10 +150,29 @@ input.invalid,select.invalid{border-color:var(--danger);outline-color:var(--dang
 .timeline .ev::before{content:"";position:absolute;inset-inline-start:-1.42rem;top:.2rem;width:12px;height:12px;border-radius:50%;background:var(--brand)}
 
 /* ---------- toast ---------- */
-#toast{position:fixed;bottom:1.2rem;inset-inline:1rem;z-index:100;background:var(--ink);color:#fff;
+#toast{position:fixed;bottom:calc(1.2rem + env(safe-area-inset-bottom));inset-inline:1rem;z-index:100;background:var(--ink);color:#fff;
   padding:.9rem 1.1rem;border-radius:14px;text-align:center;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 @media(min-width:640px){#toast{inset-inline:auto;left:50%;transform:translateX(-50%);min-width:320px}[dir="rtl"] #toast{transform:translateX(50%)}}
 #toast.err{background:var(--danger)}
+
+/* ---------- iPhone install banner ---------- */
+.ios-install{position:fixed;inset-inline:0;bottom:0;z-index:120;padding:0 .9rem calc(.9rem + env(safe-area-inset-bottom));
+  pointer-events:none}
+.ios-install .ios-card{pointer-events:auto;background:var(--card);border-radius:18px 18px 14px 14px;
+  box-shadow:0 -8px 40px rgba(10,79,55,.28);padding:1rem 1rem 1.1rem;border:1px solid rgba(228,235,230,.95);
+  animation:fadeUp .35s ease both}
+.ios-install .ios-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem}
+.ios-install .ios-head img{width:48px;height:48px;border-radius:12px;flex-shrink:0}
+.ios-install .ios-head b{display:block;font-size:1.02rem;color:var(--brand-dark)}
+.ios-install .ios-steps{margin:.5rem 0 .85rem;padding:0;list-style:none;display:grid;gap:.45rem}
+.ios-install .ios-steps li{display:flex;gap:.55rem;align-items:flex-start;font-size:.9rem;line-height:1.4}
+.ios-install .ios-steps .n{background:var(--brand-soft);color:var(--brand-dark);font-weight:800;width:24px;height:24px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.78rem}
+.ios-install .ios-actions{display:flex;gap:.5rem}
+.ios-install .ios-actions .btn{flex:1}
+.install-card{text-align:start}
+.install-card .share-ico{display:inline-flex;align-items:center;justify-content:center;width:1.4em;height:1.4em;
+  border:1.5px solid currentColor;border-radius:4px;font-size:.95em;vertical-align:-.15em;margin:0 .15em}
 
 /* ---------- docs ---------- */
 pre{background:#12241c;color:#c9e8d6;padding:1rem;border-radius:12px;overflow-x:auto;font-size:.8rem;line-height:1.5}
@@ -225,6 +253,7 @@ body{background:linear-gradient(180deg,#eef5f0 0%,var(--bg) 340px)}
 
 /* topbar */
 #topbar{background:var(--grad-brand);box-shadow:0 4px 18px rgba(10,79,55,.35);padding:.7rem .95rem}
+html.standalone #topbar{padding-top:calc(.7rem + env(safe-area-inset-top))}
 .brand{letter-spacing:.2px;text-shadow:0 1px 6px rgba(0,0,0,.25)}
 .icon-btn{transition:background .15s ease,transform .15s ease}
 .icon-btn:hover{background:rgba(255,255,255,.28);transform:translateY(-1px)}
