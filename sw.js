@@ -1,23 +1,25 @@
-/* Daira — service worker: offline shell for iPhone / PWA install */
+/* Daira — service worker: offline shell for iPhone / Android PWA */
 'use strict';
 
-const CACHE = 'daira-v20';
+const CACHE = 'daira-v23';
 const PRECACHE = [
   './',
   './index.html',
-  './styles.css?v=20',
-  './domain.js?v=20',
-  './seed.js?v=20',
-  './i18n.js?v=20',
-  './app.js?v=20',
-  './qrcode.min.js?v=20',
-  './html2pdf.bundle.min.js?v=20',
+  './styles.css?v=23',
+  './domain.js?v=23',
+  './seed.js?v=23',
+  './i18n.js?v=23',
+  './app.js?v=23',
+  './qrcode.min.js?v=23',
+  './html2pdf.bundle.min.js?v=23',
   './manifest.webmanifest',
   './apple-touch-icon.png',
   './icons/icon-32.png',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
   './hero.jpg',
   './argan-nuts.jpg',
   './coop-women.jpg',
@@ -25,11 +27,15 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // Don't fail the whole SW if one asset 404s (GitHub Pages / cache-busting)
+    await Promise.all(PRECACHE.map(async (url) => {
+      try { await cache.add(url); }
+      catch (err) { console.warn('[daira-sw] precache skip', url, err); }
+    }));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
@@ -47,7 +53,6 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // App shell navigations: network-first, fall back to cached index
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req).then(res => {
@@ -59,12 +64,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets: cache-first, then network
   event.respondWith(
     caches.match(req).then(cached => {
       if (cached) return cached;
       return fetch(req).then(res => {
-        if (res && res.ok && (url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|woff2?|webmanifest)$/) || url.search.includes('v=20'))) {
+        if (res && res.ok && (url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|woff2?|webmanifest)$/) || url.search.includes('v=23'))) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(req, copy));
         }
