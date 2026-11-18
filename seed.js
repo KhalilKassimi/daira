@@ -27,6 +27,24 @@ function dairaSeed() {
     ['purchaseOrders','packaging','financeOps','equipment','loans','grants','budgets','proxies']
       .forEach(c => { if (DB[c] === undefined) DB[c] = {}; });
     Object.values(DB.members).forEach(m => { if (m.shares_paid === undefined) m.shares_paid = m.shares || 0; });
+    // migration 4: backfill DEMO tenant (T001) data on DBs seeded before Loi 112-12 fields existed
+    const demo = Object.values(DB.tenants).find(tn => tn.code === 'T001');
+    if (demo) {
+      if (!demo.category) demo.category = '2';
+      if (!demo.province) demo.province = 'Essaouira';
+      if (!demo.purpose) demo.purpose = 'Production et commercialisation d’huile d’argan et de miel';
+      if (!demo.denom_cert_date) demo.denom_cert_date = '2023-02-10';
+      if (!demo.capital_liberated) demo.capital_liberated = 12000;
+      const villages = ['Tamanar','Tamanar','Imi Ouaddar','Tamanar','Aït Milk','Tamanar','Imi Ouaddar','Aït Milk','Tamanar','Imi Ouaddar','Aït Milk','Tamanar'];
+      const fns = ['president','treasurer','secretary'];
+      Object.values(DB.members).filter(m => m.tenant_id === demo.id)
+        .sort((a, b) => String(a.code).localeCompare(String(b.code)))
+        .forEach((m, i) => {
+          if (!m.fonction) m.fonction = fns[i] || 'member';
+          if (!m.cin) m.cin = 'CD' + (100000 + i * 137);
+          if (!m.village) m.village = villages[i] || '';
+        });
+    }
     Daira.save();
   } catch (e) {}
   if (DB.tenants && Object.keys(DB.tenants).length) return; // already seeded
