@@ -2256,7 +2256,11 @@ function hideInstallHelp(persist) {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   if (!/^https?:$/.test(location.protocol)) return;
-  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
+  // Absolute path keeps the SW scoped to /daira/ on GitHub Pages
+  const swUrl = new URL('sw.js', document.baseURI || location.href).pathname;
+  navigator.serviceWorker.register(swUrl, { scope: new URL('./', document.baseURI || location.href).pathname })
+    .then(reg => { if (reg && reg.update) try { reg.update(); } catch (e) {} })
+    .catch(err => console.warn('SW:', err));
 }
 function setupInstallCapture() {
   window.addEventListener('beforeinstallprompt', e => {

@@ -1,17 +1,17 @@
 /* Daira — service worker: offline shell for iPhone / Android PWA */
 'use strict';
 
-const CACHE = 'daira-v22';
+const CACHE = 'daira-v23';
 const PRECACHE = [
   './',
   './index.html',
-  './styles.css?v=22',
-  './domain.js?v=22',
-  './seed.js?v=22',
-  './i18n.js?v=22',
-  './app.js?v=22',
-  './qrcode.min.js?v=22',
-  './html2pdf.bundle.min.js?v=22',
+  './styles.css?v=23',
+  './domain.js?v=23',
+  './seed.js?v=23',
+  './i18n.js?v=23',
+  './app.js?v=23',
+  './qrcode.min.js?v=23',
+  './html2pdf.bundle.min.js?v=23',
   './manifest.webmanifest',
   './apple-touch-icon.png',
   './icons/icon-32.png',
@@ -27,11 +27,15 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // Don't fail the whole SW if one asset 404s (GitHub Pages / cache-busting)
+    await Promise.all(PRECACHE.map(async (url) => {
+      try { await cache.add(url); }
+      catch (err) { console.warn('[daira-sw] precache skip', url, err); }
+    }));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
@@ -64,7 +68,7 @@ self.addEventListener('fetch', event => {
     caches.match(req).then(cached => {
       if (cached) return cached;
       return fetch(req).then(res => {
-        if (res && res.ok && (url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|woff2?|webmanifest)$/) || url.search.includes('v=22'))) {
+        if (res && res.ok && (url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|woff2?|webmanifest)$/) || url.search.includes('v=23'))) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(req, copy));
         }
