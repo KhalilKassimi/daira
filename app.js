@@ -247,7 +247,7 @@ function vLanding(V) {
     </div>
     </div>
   </div>
-  <div class="stats reveal"><div class="stat"><b>14</b><span>${esc(t('st_docs'))}</span></div><div class="stat"><b>7</b><span>${esc(t('st_actes'))}</span></div><div class="stat"><b>6</b><span>${esc(t('st_sectors'))}</span></div><div class="stat"><b>2</b><span>${esc(t('st_lang'))}</span></div></div>
+  <div class="stats reveal"><div class="stat"><b>15</b><span>${esc(t('st_docs'))}</span></div><div class="stat"><b>7</b><span>${esc(t('st_actes'))}</span></div><div class="stat"><b>6</b><span>${esc(t('st_sectors'))}</span></div><div class="stat"><b>2</b><span>${esc(t('st_lang'))}</span></div></div>
   <div class="grid c2">${feats.map(([a,b,ico],i) =>
     `<div class="card feat" style="animation-delay:${.1+i*.07}s"><span class="ico">${ico}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}</div>
   <h2 class="reveal">${esc(t('ph_t'))}</h2>
@@ -257,21 +257,10 @@ function vLanding(V) {
   <h2 class="reveal">${esc(t('how_t'))}</h2>
   ${[['how_1t','how_1d'],['how_2t','how_2d'],['how_3t','how_3d']].map(([a,b],i) =>
     `<div class="card step reveal"><span class="n">${i+1}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}
-  <div class="card reveal install-card">
-    <div class="row between" style="align-items:flex-start;gap:.8rem">
-      <div>
-        <b>📱 ${esc(t('install_card_t'))}</b>
-        <div class="muted" style="margin-top:.35rem">${esc(isStandalone() ? t('install_done') : t('install_card_d'))}</div>
-      </div>
-      ${isStandalone() ? '' : `<button class="btn sm" id="installHelpBtn" style="width:auto;flex-shrink:0">${esc(t('install_btn'))}</button>`}
-    </div>
-  </div>
   <div class="card reveal" style="text-align:center"><span class="badge ok">${esc(t('law'))}</span>
     <p class="muted">${esc(t('made_in'))}</p></div>`;
   const io = ('IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 }) : null;
   V.querySelectorAll('.reveal').forEach(el => io ? io.observe(el) : el.classList.add('in'));
-  const ih = $('#installHelpBtn');
-  if (ih) ih.onclick = () => showIosInstall(true);
 }
 
 /* ---------------- login (credentials) ---------------- */
@@ -1230,6 +1219,7 @@ function vActGreffe() {
       <button class="btn" id="gr_imm">🖨️ ${esc(t('act_greffe_imm'))}</button>
       <button class="btn ghost" id="gr_mod_go">🖨️ ${esc(t('act_greffe_mod'))}</button>
       <button class="btn ghost" id="gr_rad_go">🖨️ ${esc(t('act_greffe_rad'))}</button>
+      <button class="btn warn" id="gr_official">🖨️ ${esc(t('act_greffe_official'))}</button>
     </div></div>`;
 }
 function vActAG() {
@@ -1267,6 +1257,7 @@ function bindActes(V, tab) {
     $('#gr_imm').onclick = () => printGreffe('imm');
     $('#gr_mod_go').onclick = () => printGreffe('mod', $('#gr_mod').value);
     $('#gr_rad_go').onclick = () => printGreffe('rad', $('#gr_rad').value);
+    $('#gr_official').onclick = () => printRegLocal();
   }
   if (tab === 'ag') {
     $('#ag_conv').onclick = () => printConvocation($('#ag_a').value);
@@ -1437,6 +1428,65 @@ function greffeBody(kind, extra) {
   <div class="foot">${esc(t('made_in'))} · Daira</div>`;
 }
 function printGreffe(kind, extra) { printDoc(t('act_greffe'), greffeBody(kind, extra)); }
+function regLocalBody() {
+  const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
+  const ms = Daira.scoped('members');
+  const bureau = ms.filter(m => m.fonction && m.fonction !== 'member');
+  const pres = bureau.find(m => m.fonction === 'president') || bureau[0] || {};
+  const dots = '……………………………………';
+  const catBox = n => (String(tn.category) === String(n) ? '☑' : '☐') + ' الصنف ' + n;
+  const frame = 'border:1.5px solid #333;padding:10px 12px;margin:14px 0';
+  return `
+  <div class="doc-head"><div class="sub" style="font-size:13px;color:#111">المملكة المغربية<br>وزارة العدل والحريات</div>
+    <h1>نموذج طلب التسجيل في السجل المحلي للتعاونيات</h1>
+    <div class="sub">(المادة 1 من المرسوم رقم 2.15.617 الصادر في 24 جمادى الآخرة 1437 (24 مارس 2016) بتحديد قواعد تنظيم وتسيير سجل التعاونيات)</div></div>
+  <p>طلب التسجيل بمحكمة الاستئناف ب${dots} / المحكمة الابتدائية ب${dots}</p>
+  <p>إلى السيد(ة) رئيس(ة) كتابة الضبط بالمحكمة الابتدائية،</p>
+  <p>أنا الموقّع(ة) أسفله، بصفتي: رئيس(ة) مجلس الإدارة / مسيّر(ة) / وكيل(ة)<sup>(1)</sup></p>
+  <table>
+    <tr><th style="width:32%">الاسم الشخصي والعائلي</th><td>${esc((pres.name || '') + ' ' + (pres.firstname || '')) || dots}</td></tr>
+    <tr><th>نوع وثيقة التعريف</th><td>بطاقة التعريف الوطنية</td></tr>
+    <tr><th>رقم وثيقة التعريف</th><td>${esc(pres.cin || dots)}</td></tr>
+    <tr><th>العنوان</th><td>${esc(pres.village || dots)}</td></tr>
+  </table>
+  <p>أتقدّم بطلب تسجيل التعاونية / الاتحاد المسمّاة: <b>${esc(tn.name_ar || tn.name || '—')}</b>،
+  المصادق على تسميتها من طرف مكتب تنمية التعاون بتاريخ: ${tn.denom_cert_date ? fmtD(tn.denom_cert_date) : dots}، على الساعة ${dots}</p>
+  <table>
+    <tr><th style="width:32%">المقر</th><td>${esc(tn.region || '—')}${tn.province ? ' · ' + esc(tn.province) : ''}</td></tr>
+    <tr><th>القطاع</th><td>${esc(tn.sector || '—')}</td></tr>
+    <tr><th>الصنف<sup>(2)</sup></th><td>${catBox(1)} &nbsp; ${catBox(2)} &nbsp; ${catBox(3)}</td></tr>
+  </table>
+  <h2>بيانات عن أعضاء أجهزة الإدارة والتسيير</h2>
+  <table><tr><th>الاسم الشخصي والعائلي</th><th>الجنسية</th><th>نوع وثيقة التعريف</th><th>رقم وثيقة التعريف</th><th>الصفة</th><th>العنوان</th></tr>
+  ${bureau.map(m => `<tr><td>${esc(m.name)} ${esc(m.firstname || '')}</td><td>مغربية</td><td>بطاقة التعريف الوطنية</td><td>${esc(m.cin || '—')}</td><td>${esc(t('fo_' + m.fonction))}</td><td>${esc(m.village || '—')}</td></tr>`).join('') || `<tr><td colspan="6" class="muted">—</td></tr>`}</table>
+  <div class="sig"><div>توقيع صاحب الطلب<br><br><br></div></div>
+  <div style="${frame}"><b>إطار خاص بكتابة الضبط</b>
+    <p>التسمية: ${dots}${dots}</p>
+    <p>الوثائق المدلى بها للتسجيل: ${dots}</p>
+    <p>${dots}${dots}</p>
+    <p>وُضع هذا الطلب بسجل ……… تحت رقم ……… على الساعة ……… الترتيبي ………</p>
+    <p><b>شهادة كتابة الضبط:</b> يشهد رئيس كتابة الضبط أنه بعد التحقق من صحة البيانات الواردة في هذا التصريح ومطابقتها للوثائق المدلى بها والمنصوص عليها قانوناً، قام بالتسجيل المطلوب بسجل التعاونيات تحت رقم ${dots}</p>
+    <div class="sig"><div>توقيع رئيس كتابة الضبط<br><br><br></div><div>طابع المحكمة<br><br><br></div></div>
+  </div>
+  <div style="${frame}"><b>إطار خاص بتعليل رفض التسجيل عند الاقتضاء</b>
+    <p>أسباب رفض طلب التسجيل: ${dots}</p>
+    <p>${dots}${dots}</p>
+    <div class="sig"><div>توقيع رئيس كتابة الضبط<br><br><br></div><div>طابع المحكمة<br><br><br></div></div>
+  </div>
+  <h2>وثائق تسجيل التعاونية</h2>
+  <p>• النظام الأساسي للتعاونية موقّع بشكل قانوني من قبل المؤسسين أو وكلائهم المفوَّض لهم لهذه الغاية، ومصادق عليه من طرف الجهات المختصة؛<br>
+  • قائمة بالأعضاء المتعاونين؛<br>
+  • نسخة من بطاقة التعريف الوطنية بالنسبة للأعضاء المغاربة، ومن بطاقة التسجيل وجواز السفر بالنسبة للأجانب المقيمين بالمغرب، ونسخة من القيود المضمّنة في السجل التجاري بالنسبة للشركات التجارية، ونسخة من القيود المضمّنة في سجل التعاونيات بالنسبة للتعاونيات؛<br>
+  • نسخة من بطاقة التعريف الوطنية بالنسبة لأعضاء أجهزة الإدارة والتسيير المغاربة، ومن بطاقة التسجيل وجواز السفر بالنسبة للأجانب المقيمين بالمغرب؛<br>
+  • شهادة ممنوحة من طرف البنك المودع لديه تثبت إيداع الأموال المستخلصة من تحرير رأس المال؛<br>
+  • وصل السلطة الإدارية المحلية؛<br>
+  • شهادة التسمية.</p>
+  <p><b>الوثائق الملائمة:</b> النظام الأساسي — قرار الترخيص للتعاونية أو الاتحاد — محضر الجمع العام الاستثنائي (طبقاً للفقرة الثانية من المادة الأولى من المرسوم رقم 2.15.617).</p>
+  <p style="font-size:11px;color:#555">(1) في حالة التسجيل بواسطة وكيل، يجب إرفاق الطلب بوكالة وفق ما تنص عليه المادة 11 من القانون رقم 112.12 المتعلق بالتعاونيات.<br>
+  (2) الصنف 1: تعاونيات يزوّدها أعضاؤها بمنتجات قصد بيعها للغير بعد تحويلها أو بخدمات قصد تقديمها إليهم؛ الصنف 2: تعاونيات إنتاج المواد أو تقديم الخدمات؛ الصنف 3: تعاونيات تقدّم عملاً مأجوراً لفائدة أعضائها.</p>
+  <div class="foot">${esc(t('made_in'))} · Daira</div>`;
+}
+function printRegLocal() { printDoc(t('act_greffe_official'), regLocalBody()); }
 function printConvocation(asmId) {
   const tn = Daira.DB().tenants[Daira.activeTenantId()] || {};
   const a = Daira.get('assemblies', asmId);
@@ -2065,9 +2115,6 @@ function vDocs(V) {
 function vSettings(V) {
   V.innerHTML = `<h1>⚙️ ${esc(t('set_t'))}</h1>
   <div class="card"><label class="f">${esc(t('set_lang'))}<select id="s_l">${LANGS.map(l=>`<option value="${l.code}" ${l.code===LANG?'selected':''}>${l.label}</option>`).join('')}</select></label></div>
-  <div class="card install-card"><h2 style="margin-top:0">📱 ${esc(t('install_card_t'))}</h2>
-    <p class="muted">${esc(isStandalone() ? t('install_done') : t('install_card_d'))}</p>
-    ${isStandalone() ? '' : `<button class="btn ghost" id="s_install">${esc(t('install_btn'))}</button>`}</div>
   <div class="card"><h2 style="margin-top:0">🔑 ${esc(t('set_pin_t'))}</h2>
     <label class="f">${esc(t('set_oldpin'))}<input id="s_op" type="password"></label>
     <label class="f">${esc(t('set_newpin'))}<input id="s_np" type="password"></label>
@@ -2079,8 +2126,6 @@ function vSettings(V) {
   <div class="card"><h2 style="margin-top:0;color:var(--danger)">⚠️ ${esc(t('set_danger'))}</h2>
     <button class="btn danger" id="s_r">🧹 ${esc(t('set_reset'))}</button></div>`;
   $('#s_l').onchange = e => setLang(e.target.value);
-  const si = $('#s_install');
-  if (si) si.onclick = () => showIosInstall(true);
   $('#s_pg').onclick = () => {
     const u = Daira.currentUser();
     if (!u || Daira.hashPin($('#s_op').value) !== u.pin_hash) { toast('⛔ ' + t('login_err'), true); return; }
@@ -2102,55 +2147,8 @@ function vSettings(V) {
   $('#s_r').onclick = () => { if (confirm('OK?')) { Daira.resetDB(); location.hash = '#/'; location.reload(); } };
 }
 
-/* ---------------- iPhone / PWA install ---------------- */
-function isStandalone() {
-  return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-    || !!window.navigator.standalone;
-}
-function isIosDevice() {
-  const ua = navigator.userAgent || '';
-  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-function showIosInstall(force) {
-  const el = $('#iosInstall');
-  if (!el) return;
-  if (!force && (isStandalone() || localStorage.getItem('daira_ios_install_dismissed') === '1')) {
-    el.classList.add('hidden');
-    return;
-  }
-  el.innerHTML = `<div class="ios-card">
-    <div class="ios-head">
-      <img src="apple-touch-icon.png" alt="Daira" width="48" height="48">
-      <div><b>${esc(t('install_t'))}</b><span class="muted" style="font-size:.85rem;display:block;margin-top:.15rem">${esc(t('install_sub'))}</span></div>
-    </div>
-    <ol class="ios-steps">
-      <li><span class="n">1</span><span>${esc(t('install_s1'))} <span class="share-ico" aria-hidden="true">⬆️</span></span></li>
-      <li><span class="n">2</span><span>${esc(t('install_s2'))}</span></li>
-      <li><span class="n">3</span><span>${esc(t('install_s3'))}</span></li>
-    </ol>
-    <div class="ios-actions">
-      <button class="btn ghost" id="iosDismiss">${esc(t('install_dismiss'))}</button>
-      <button class="btn" id="iosOk">${esc(t('install_ok'))}</button>
-    </div>
-  </div>`;
-  el.classList.remove('hidden');
-  const hide = (persist) => {
-    el.classList.add('hidden');
-    if (persist) try { localStorage.setItem('daira_ios_install_dismissed', '1'); } catch (e) {}
-  };
-  $('#iosDismiss').onclick = () => hide(true);
-  $('#iosOk').onclick = () => hide(true);
-}
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  // Only over http(s) — file:// and some previews cannot register
-  if (!/^https?:$/.test(location.protocol)) return;
-  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
-}
-
 /* ---------------- boot ---------------- */
 (function boot() {
-  if (isStandalone()) document.documentElement.classList.add('standalone');
   try { dairaSeed(); } catch (e) { console.warn('seed:', e); }
   buildLangSel();
   const s = Daira.DB().session;
@@ -2162,9 +2160,4 @@ function registerServiceWorker() {
   buildLangSel();
   if (!location.hash) location.hash = '#/';
   render();
-  registerServiceWorker();
-  // Auto-prompt only on iPhone/iPad Safari (not already installed)
-  if (isIosDevice() && !isStandalone()) {
-    setTimeout(() => showIosInstall(false), 1800);
-  }
 })();
