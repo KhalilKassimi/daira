@@ -155,21 +155,21 @@ input.invalid,select.invalid{border-color:var(--danger);outline-color:var(--dang
 @media(min-width:640px){#toast{inset-inline:auto;left:50%;transform:translateX(-50%);min-width:320px}[dir="rtl"] #toast{transform:translateX(50%)}}
 #toast.err{background:var(--danger)}
 
-/* ---------- iPhone install banner ---------- */
-.ios-install{position:fixed;inset-inline:0;bottom:0;z-index:120;padding:0 .9rem calc(.9rem + env(safe-area-inset-bottom));
+/* ---------- mobile install banner (iPhone + Android) ---------- */
+.pwa-install,.ios-install{position:fixed;inset-inline:0;bottom:0;z-index:120;padding:0 .9rem calc(.9rem + env(safe-area-inset-bottom));
   pointer-events:none}
-.ios-install .ios-card{pointer-events:auto;background:var(--card);border-radius:18px 18px 14px 14px;
+.pwa-install .pwa-card,.ios-install .ios-card{pointer-events:auto;background:var(--card);border-radius:18px 18px 14px 14px;
   box-shadow:0 -8px 40px rgba(10,79,55,.28);padding:1rem 1rem 1.1rem;border:1px solid rgba(228,235,230,.95);
   animation:fadeUp .35s ease both}
-.ios-install .ios-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem}
-.ios-install .ios-head img{width:48px;height:48px;border-radius:12px;flex-shrink:0}
-.ios-install .ios-head b{display:block;font-size:1.02rem;color:var(--brand-dark)}
-.ios-install .ios-steps{margin:.5rem 0 .85rem;padding:0;list-style:none;display:grid;gap:.45rem}
-.ios-install .ios-steps li{display:flex;gap:.55rem;align-items:flex-start;font-size:.9rem;line-height:1.4}
-.ios-install .ios-steps .n{background:var(--brand-soft);color:var(--brand-dark);font-weight:800;width:24px;height:24px;
+.pwa-install .pwa-head,.ios-install .ios-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem}
+.pwa-install .pwa-head img,.ios-install .ios-head img{width:48px;height:48px;border-radius:12px;flex-shrink:0}
+.pwa-install .pwa-head b,.ios-install .ios-head b{display:block;font-size:1.02rem;color:var(--brand-dark)}
+.pwa-install .pwa-steps,.ios-install .ios-steps{margin:.5rem 0 .85rem;padding:0;list-style:none;display:grid;gap:.45rem}
+.pwa-install .pwa-steps li,.ios-install .ios-steps li{display:flex;gap:.55rem;align-items:flex-start;font-size:.9rem;line-height:1.4}
+.pwa-install .pwa-steps .n,.ios-install .ios-steps .n{background:var(--brand-soft);color:var(--brand-dark);font-weight:800;width:24px;height:24px;
   border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.78rem}
-.ios-install .ios-actions{display:flex;gap:.5rem}
-.ios-install .ios-actions .btn{flex:1}
+.pwa-install .pwa-actions,.ios-install .ios-actions{display:flex;gap:.5rem}
+.pwa-install .pwa-actions .btn,.ios-install .ios-actions .btn{flex:1}
 .install-card{text-align:start}
 .install-card .share-ico{display:inline-flex;align-items:center;justify-content:center;width:1.4em;height:1.4em;
   border:1.5px solid currentColor;border-radius:4px;font-size:.95em;vertical-align:-.15em;margin:0 .15em}

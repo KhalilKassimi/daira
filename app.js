@@ -257,10 +257,23 @@ function vLanding(V) {
   <h2 class="reveal">${esc(t('how_t'))}</h2>
   ${[['how_1t','how_1d'],['how_2t','how_2d'],['how_3t','how_3d']].map(([a,b],i) =>
     `<div class="card step reveal"><span class="n">${i+1}</span><div><b>${esc(t(a))}</b><div class="muted">${esc(t(b))}</div></div></div>`).join('')}
+  <div class="card reveal install-card">
+    <div class="row between" style="align-items:flex-start;gap:.8rem;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <b>📱 ${esc(t('install_card_t'))}</b>
+        <div class="muted" style="margin-top:.35rem">${esc(isStandalone() ? t('install_done') : installCardDesc())}</div>
+      </div>
+      ${isStandalone() ? '' : `<div class="row" style="gap:.4rem;flex-shrink:0">
+        ${deferredInstall ? `<button class="btn sm" id="installNowBtn" style="width:auto">${esc(t('install_now'))}</button>` : ''}
+        <button class="btn sm ${deferredInstall ? 'ghost' : ''}" id="installHelpBtn" style="width:auto">${esc(t('install_btn'))}</button>
+      </div>`}
+    </div>
+  </div>
   <div class="card reveal" style="text-align:center"><span class="badge ok">${esc(t('law'))}</span>
     <p class="muted">${esc(t('made_in'))}</p></div>`;
   const io = ('IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 }) : null;
   V.querySelectorAll('.reveal').forEach(el => io ? io.observe(el) : el.classList.add('in'));
+  bindInstallButtons();
 }
 
 /* ---------------- login (credentials) ---------------- */
@@ -2115,6 +2128,12 @@ function vDocs(V) {
 function vSettings(V) {
   V.innerHTML = `<h1>⚙️ ${esc(t('set_t'))}</h1>
   <div class="card"><label class="f">${esc(t('set_lang'))}<select id="s_l">${LANGS.map(l=>`<option value="${l.code}" ${l.code===LANG?'selected':''}>${l.label}</option>`).join('')}</select></label></div>
+  <div class="card install-card"><h2 style="margin-top:0">📱 ${esc(t('install_card_t'))}</h2>
+    <p class="muted">${esc(isStandalone() ? t('install_done') : installCardDesc())}</p>
+    ${isStandalone() ? '' : `<div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.4rem">
+      ${deferredInstall ? `<button class="btn" id="s_install_now" style="flex:1">${esc(t('install_now'))}</button>` : ''}
+      <button class="btn ghost" id="s_install" style="flex:1">${esc(t('install_btn'))}</button>
+    </div>`}</div>
   <div class="card"><h2 style="margin-top:0">🔑 ${esc(t('set_pin_t'))}</h2>
     <label class="f">${esc(t('set_oldpin'))}<input id="s_op" type="password"></label>
     <label class="f">${esc(t('set_newpin'))}<input id="s_np" type="password"></label>
@@ -2126,6 +2145,7 @@ function vSettings(V) {
   <div class="card"><h2 style="margin-top:0;color:var(--danger)">⚠️ ${esc(t('set_danger'))}</h2>
     <button class="btn danger" id="s_r">🧹 ${esc(t('set_reset'))}</button></div>`;
   $('#s_l').onchange = e => setLang(e.target.value);
+  bindInstallButtons();
   $('#s_pg').onclick = () => {
     const u = Daira.currentUser();
     if (!u || Daira.hashPin($('#s_op').value) !== u.pin_hash) { toast('⛔ ' + t('login_err'), true); return; }
@@ -2147,8 +2167,119 @@ function vSettings(V) {
   $('#s_r').onclick = () => { if (confirm('OK?')) { Daira.resetDB(); location.hash = '#/'; location.reload(); } };
 }
 
+/* ---------------- iPhone + Android PWA install ---------------- */
+let deferredInstall = null;
+
+function isStandalone() {
+  return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || !!window.navigator.standalone;
+}
+function isIosDevice() {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function isAndroidDevice() {
+  return /Android/i.test(navigator.userAgent || '');
+}
+function installPlatform() {
+  if (isIosDevice()) return 'ios';
+  if (isAndroidDevice()) return 'android';
+  return 'mobile';
+}
+function installCardDesc() {
+  const p = installPlatform();
+  if (p === 'ios') return t('install_card_d_ios');
+  if (p === 'android') return t('install_card_d_android');
+  return t('install_card_d');
+}
+function installKeys() {
+  const p = installPlatform();
+  const prefix = p === 'ios' ? 'install_ios_' : (p === 'android' ? 'install_android_' : 'install_mobile_');
+  return { title: prefix + 't', sub: prefix + 'sub', s1: prefix + 's1', s2: prefix + 's2', s3: prefix + 's3' };
+}
+function bindInstallButtons() {
+  const helpIds = ['installHelpBtn', 's_install'];
+  const nowIds = ['installNowBtn', 's_install_now'];
+  helpIds.forEach(id => { const el = document.getElementById(id); if (el) el.onclick = () => showInstallHelp(true); });
+  nowIds.forEach(id => { const el = document.getElementById(id); if (el) el.onclick = () => triggerNativeInstall(); });
+}
+async function triggerNativeInstall() {
+  if (!deferredInstall) { showInstallHelp(true); return; }
+  const ev = deferredInstall;
+  deferredInstall = null;
+  try {
+    await ev.prompt();
+    await ev.userChoice;
+  } catch (e) { /* ignore */ }
+  hideInstallHelp(true);
+  render();
+}
+function showInstallHelp(force) {
+  const el = $('#pwaInstall');
+  if (!el) return;
+  if (!force && (isStandalone() || localStorage.getItem('daira_pwa_install_dismissed') === '1')) {
+    el.classList.add('hidden');
+    return;
+  }
+  const k = installKeys();
+  const canNative = !!deferredInstall && !isIosDevice();
+  el.innerHTML = `<div class="pwa-card">
+    <div class="pwa-head">
+      <img src="apple-touch-icon.png" alt="Daira" width="48" height="48">
+      <div><b>${esc(t(k.title))}</b><span class="muted" style="font-size:.85rem;display:block;margin-top:.15rem">${esc(t(k.sub))}</span></div>
+    </div>
+    <ol class="pwa-steps">
+      <li><span class="n">1</span><span>${esc(t(k.s1))}${installPlatform() === 'ios' ? ' <span class="share-ico" aria-hidden="true">⬆️</span>' : ''}</span></li>
+      <li><span class="n">2</span><span>${esc(t(k.s2))}</span></li>
+      <li><span class="n">3</span><span>${esc(t(k.s3))}</span></li>
+    </ol>
+    <div class="pwa-actions">
+      <button class="btn ghost" id="pwaDismiss">${esc(t('install_dismiss'))}</button>
+      ${canNative
+        ? `<button class="btn" id="pwaInstallNow">${esc(t('install_now'))}</button>`
+        : `<button class="btn" id="pwaOk">${esc(t('install_ok'))}</button>`}
+    </div>
+  </div>`;
+  el.classList.remove('hidden');
+  const dismiss = document.getElementById('pwaDismiss');
+  const ok = document.getElementById('pwaOk');
+  const now = document.getElementById('pwaInstallNow');
+  if (dismiss) dismiss.onclick = () => hideInstallHelp(true);
+  if (ok) ok.onclick = () => hideInstallHelp(true);
+  if (now) now.onclick = () => triggerNativeInstall();
+}
+function hideInstallHelp(persist) {
+  const el = $('#pwaInstall');
+  if (el) el.classList.add('hidden');
+  if (persist) try { localStorage.setItem('daira_pwa_install_dismissed', '1'); } catch (e) {}
+}
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (!/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
+}
+function setupInstallCapture() {
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstall = e;
+    // Refresh landing/settings buttons if visible
+    const nowBtn = document.getElementById('installNowBtn') || document.getElementById('s_install_now');
+    if (!nowBtn && !isStandalone()) {
+      // Re-render current view lightly: only if install card exists
+      if (document.querySelector('.install-card')) render();
+    }
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstall = null;
+    hideInstallHelp(true);
+    toast('✅ ' + t('install_done'));
+  });
+}
+
 /* ---------------- boot ---------------- */
 (function boot() {
+  if (isStandalone()) document.documentElement.classList.add('standalone');
+  setupInstallCapture();
   try { dairaSeed(); } catch (e) { console.warn('seed:', e); }
   buildLangSel();
   const s = Daira.DB().session;
@@ -2160,4 +2291,10 @@ function vSettings(V) {
   buildLangSel();
   if (!location.hash) location.hash = '#/';
   render();
+  registerServiceWorker();
+  if (!isStandalone()) {
+    setTimeout(() => {
+      if (isIosDevice() || isAndroidDevice()) showInstallHelp(false);
+    }, 1800);
+  }
 })();
